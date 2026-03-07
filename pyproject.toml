@@ -1,9 +1,19 @@
 [project]
 name = "projrvt"
-version = "0.1.0"
-description = "Minimal projrvt Python project"
+version = "1.0.0"
+description = "ATLAS personal assistant scaffold with voice, memory, and integrations."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.0.0",
+  "pyttsx3>=2.90",
+  "SpeechRecognition>=3.10.0",
+  "requests>=2.31.0",
+  "pyperclip>=1.8.2",
+  "pytz>=2024.1",
+  "schedule>=1.2.0",
+  "plyer>=2.1.0",
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
