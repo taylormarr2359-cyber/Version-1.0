@@ -55,6 +55,24 @@ def get_tts_style() -> str:
     return (os.getenv("ATLAS_TTS_STYLE", "calm_authoritative") or "calm_authoritative").strip()
 
 
+def get_voice_interruptible() -> bool:
+    raw = (os.getenv("ATLAS_VOICE_INTERRUPTIBLE", "true") or "true").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def get_wake_word() -> str:
+    return (os.getenv("ATLAS_WAKE_WORD", "atlas") or "atlas").strip().lower()
+
+
+def get_voice_timeout_sec() -> float:
+    raw = (os.getenv("ATLAS_VOICE_TIMEOUT_SEC", "4.0") or "4.0").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        value = 4.0
+    return max(1.0, min(30.0, value))
+
+
 def build_system_prompt() -> str:
     return (
         "You are ATLAS, a proactive, insightful personal assistant. "

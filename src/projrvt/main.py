@@ -1,4 +1,5 @@
 from .assistant import AtlasAssistant
+from .config import get_wake_word
 
 
 def hello(name: str = "world") -> str:
@@ -7,7 +8,7 @@ def hello(name: str = "world") -> str:
 
 def run_cli() -> None:
     assistant = AtlasAssistant()
-    wake_word = "atlas"
+    wake_word = get_wake_word()
 
     print("ATLAS online. Type 'exit' to quit.")
     print(f"Wake word is '{wake_word}'. Example: atlas help me plan my day")
