@@ -18,3 +18,7 @@ build/
 
 # Pytest cache
 .pytest_cache/
+
+# Local env files
+.env
+.env.*
