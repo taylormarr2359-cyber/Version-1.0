@@ -1,0 +1,10 @@
+{
+  "model": "gpt-3.5-turbo",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Reply with OK"
+    }
+  ],
+  "max_tokens": 8
+}

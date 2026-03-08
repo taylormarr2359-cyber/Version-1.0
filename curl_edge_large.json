@@ -1,0 +1,10 @@
+{
+  "model": "gpt-3.5-turbo",
+  "messages": [
+    {
+      "role": "user",
+      "content": "This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing. This is a large but valid payload for edge testing."
+    }
+  ],
+  "max_tokens": 8
+}
