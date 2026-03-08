@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import get_tts_provider, get_tts_rate, get_tts_style, get_tts_voice_name, get_tts_volume
+from .config import (
+    get_tts_provider,
+    get_tts_rate,
+    get_tts_style,
+    get_tts_voice_name,
+    get_tts_volume,
+    get_voice_interruptible,
+)
 
 
 @dataclass
@@ -16,6 +24,7 @@ class VoiceSettings:
     preferred_voice_name: str = "en-US-ChristopherNeural"
     style: str = "calm_authoritative"
     provider: str = "cloud"
+    interruptible: bool = True
 
 
 class VoiceEngine:
@@ -27,14 +36,17 @@ class VoiceEngine:
                 preferred_voice_name=get_tts_voice_name(),
                 style=get_tts_style(),
                 provider=get_tts_provider(),
+                interruptible=get_voice_interruptible(),
             )
         self.settings = settings
         self._engine = None
+        self._speak_lock = threading.RLock()
+        self._selected_local_voice_id: str | None = None
 
     def _pick_best_local_voice(self, voices) -> str | None:
         preferred = self.settings.preferred_voice_name.lower()
         ranked_hits: list[tuple[int, str]] = []
-        deep_keywords = ("david", "mark", "james", "guy", "male", "deep")
+        deep_keywords = ("christopher", "guy", "davis", "david", "mark", "james", "male", "deep")
         for voice in voices:
             voice_name = (getattr(voice, "name", "") or "").lower()
             voice_id = (getattr(voice, "id", "") or "")
@@ -43,6 +55,8 @@ class VoiceEngine:
                 score += 100
             if any(k in voice_name for k in deep_keywords):
                 score += 50
+            if "christopher" in voice_name or "guy" in voice_name:
+                score += 35
             if "zira" in voice_name or "female" in voice_name:
                 score -= 40
             if score > 0 and voice_id:
@@ -66,6 +80,7 @@ class VoiceEngine:
             best_voice_id = self._pick_best_local_voice(voices)
             if best_voice_id:
                 self._engine.setProperty("voice", best_voice_id)
+                self._selected_local_voice_id = best_voice_id
         except Exception:
             self._engine = None
 
@@ -104,14 +119,43 @@ class VoiceEngine:
         except Exception:
             return False
 
-    def speak(self, text: str) -> None:
-        if self.settings.provider == "cloud":
-            if self._speak_cloud(text):
-                return
-
-        self._init_engine()
+    def stop(self) -> None:
         if self._engine is None:
-            print(f"ATLAS (voice-fallback): {text}")
             return
-        self._engine.say(text)
-        self._engine.runAndWait()
+        try:
+            self._engine.stop()
+        except Exception:
+            pass
+
+    def speak(self, text: str) -> None:
+        with self._speak_lock:
+            if self.settings.interruptible:
+                self.stop()
+
+            if self.settings.provider == "cloud":
+                if self._speak_cloud(text):
+                    return
+
+            self._init_engine()
+            if self._engine is None:
+                print(f"ATLAS (voice-fallback): {text}")
+                return
+            self._engine.say(text)
+            self._engine.runAndWait()
+
+    def diagnostics_text(self) -> str:
+        selected = self._selected_local_voice_id or "auto/not-initialized"
+        return (
+            "Voice Diagnostics:\n"
+            f"- provider: {self.settings.provider}\n"
+            f"- preferred voice: {self.settings.preferred_voice_name}\n"
+            f"- selected local voice: {selected}\n"
+            f"- rate: {self.settings.rate}\n"
+            f"- volume: {self.settings.volume}\n"
+            f"- interruptible: {self.settings.interruptible}"
+        )
+
+    def speak_async(self, text: str) -> threading.Thread:
+        worker = threading.Thread(target=self.speak, args=(text,), daemon=True)
+        worker.start()
+        return worker
