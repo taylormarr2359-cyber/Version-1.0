@@ -22,6 +22,23 @@ class AtlasEngine:
             "- Suggestion: define your next single priority and I will break it into steps."
         )
 
+    def _build_context_block(self, user_text: str, memory_summary: str) -> str:
+        return f"Context: {memory_summary}\nUser: {user_text}"
+
+    def plan(self, objective: str) -> list[str]:
+        objective = (objective or "").strip() or "the requested objective"
+        return [
+            f"Clarify objective and constraints for: {objective}",
+            "Break objective into concrete milestones.",
+            "Execute first milestone now and report progress.",
+            "Review outcomes and iterate with optimizations.",
+        ]
+
+    def execution_outline(self, objective: str) -> str:
+        steps = self.plan(objective)
+        rendered = "\n".join([f"{idx+1}. {step}" for idx, step in enumerate(steps)])
+        return f"Execution outline:\n{rendered}"
+
     def reply(self, user_text: str, memory_summary: str) -> EngineResponse:
         # If no key, fallback quickly.
         if not self.api_key:
@@ -41,7 +58,7 @@ class AtlasEngine:
                     {"role": "system", "content": self.system_prompt},
                     {
                         "role": "user",
-                        "content": f"Context: {memory_summary}\nUser: {user_text}",
+                        "content": self._build_context_block(user_text, memory_summary),
                     },
                 ],
                 temperature=0.6,
