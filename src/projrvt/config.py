@@ -10,12 +10,12 @@ def _read_api_key_from_file(file_path: Path) -> str:
     return text
 
 
-def load_openai_api_key() -> str:
+def load_anthropic_api_key() -> str:
     # Priority:
-    # 1) OPENAI_API_KEY env var
+    # 1) ANTHROPIC_API_KEY env var
     # 2) ATLAS_API_KEY env var
     # 3) local api_key.txt in project root
-    env_key = os.getenv("OPENAI_API_KEY") or os.getenv("ATLAS_API_KEY")
+    env_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ATLAS_API_KEY")
     if env_key:
         return env_key.strip()
 

@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import Generator
 
-from .config import build_system_prompt, load_openai_api_key
+import anthropic
+
+from .config import build_system_prompt, load_anthropic_api_key
 
 
 @dataclass
@@ -12,7 +14,7 @@ class EngineResponse:
 
 class AtlasEngine:
     def __init__(self) -> None:
-        self.api_key = load_openai_api_key()
+        self.api_key = load_anthropic_api_key()
         self.system_prompt = build_system_prompt()
 
     def _fallback_reply(self, user_text: str, memory_summary: str) -> str:
@@ -48,23 +50,25 @@ class AtlasEngine:
                 used_live_llm=False,
             )
 
-        # Try OpenAI v1 client first.
         try:
-            from openai import OpenAI
-
-            client = OpenAI(api_key=self.api_key)
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
+            client = anthropic.Anthropic(api_key=self.api_key)
+            with client.messages.stream(
+                model="claude-opus-4-6",
+                max_tokens=1024,
+                thinking={"type": "adaptive"},
+                system=self.system_prompt,
                 messages=[
-                    {"role": "system", "content": self.system_prompt},
                     {
                         "role": "user",
                         "content": self._build_context_block(user_text, memory_summary),
-                    },
+                    }
                 ],
-                temperature=0.6,
+            ) as stream:
+                message = stream.get_final_message()
+            text = next(
+                (block.text for block in message.content if hasattr(block, "text")),
+                "",
             )
-            text = completion.choices[0].message.content or ""
             return EngineResponse(text=text.strip(), used_live_llm=True)
         except Exception:
             return EngineResponse(
