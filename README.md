@@ -62,12 +62,41 @@ python -m projrvt.main
 
 Inside CLI:
 - `atlas <message>` wake-word style
+- `plan <objective>` create a structured action plan
+- `do <objective>` execute with orchestration outline behavior
+- `mute` disable voice output
+- `unmute` re-enable voice output
+- `stop speaking` (aliases: `stop voice`, `silence`) interrupt current speech
 - `weather <city>`
 - `calendar`
 - `email`
 - `notes`
 - `smart home`
 - `exit`
+
+## Runtime Environment Controls
+
+In addition to the TTS settings above, runtime behavior can be configured with:
+
+```bash
+set ATLAS_WAKE_WORD=atlas
+set ATLAS_VOICE_INTERRUPTIBLE=true
+set ATLAS_VOICE_TIMEOUT_SEC=8
+```
+
+- `ATLAS_WAKE_WORD`: wake prefix used by CLI parsing.
+- `ATLAS_VOICE_INTERRUPTIBLE`: allows speech interruption handling.
+- `ATLAS_VOICE_TIMEOUT_SEC`: timeout used by voice/listening paths where applicable.
+
+## Test Status Snapshot
+
+Validated in this environment:
+- Unit tests: `pytest -q` => `21/21` passing.
+- Backend/API curl matrix:
+  - valid auth + valid JSON => `200`
+  - invalid auth => `401`
+  - malformed JSON => `400`
+  - invalid endpoint => `404`
 
 ## Security Note
 
