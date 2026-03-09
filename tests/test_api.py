@@ -153,6 +153,31 @@ def test_diagnostics_returns_message():
 # ---------------------------------------------------------------------------
 # Auth: when ATLAS_API_AUTH_KEY is set, unauthenticated requests are rejected
 # ---------------------------------------------------------------------------
+# Streaming
+# ---------------------------------------------------------------------------
+def test_chat_stream_returns_event_stream():
+    """POST /chat/stream must return SSE content-type and emit a done event."""
+    with client.stream("POST", "/chat/stream", json={"message": "help"}) as resp:
+        assert resp.status_code == 200
+        ct = resp.headers.get("content-type", "")
+        assert "text/event-stream" in ct
+        lines = list(resp.iter_lines())
+    combined = "\n".join(lines)
+    assert "data:" in combined
+    assert '"done": true' in combined or '"done":true' in combined
+
+
+def test_chat_stream_yields_token():
+    """Structured command must emit at least one token chunk."""
+    with client.stream("POST", "/chat/stream", json={"message": "mute"}) as resp:
+        lines = list(resp.iter_lines())
+    combined = "\n".join(lines)
+    assert '"token"' in combined
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 def test_auth_blocks_unauthenticated(monkeypatch):
     monkeypatch.setenv("ATLAS_API_AUTH_KEY", "secret-test-key")
 

@@ -8,11 +8,14 @@ Run with:
 """
 from __future__ import annotations
 
+import asyncio
+import json as _json
 import pathlib
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -117,6 +120,32 @@ async def root() -> FileResponse:
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok", "wake_word": get_wake_word()}
+
+
+@app.post("/chat/stream")
+async def chat_stream(
+    req: ChatRequest,
+    assistant: AtlasAssistant = Depends(_get_assistant),
+    _: None = Depends(_check_auth),
+) -> StreamingResponse:
+    """Server-Sent Events endpoint — yields tokens as they arrive from the LLM."""
+
+    async def _event_stream():
+        loop = asyncio.get_event_loop()
+        gen = assistant.handle_stream(req.message)
+        _stop = object()
+        while True:
+            chunk = await loop.run_in_executor(None, next, gen, _stop)
+            if chunk is _stop:
+                break
+            yield f"data: {_json.dumps({'token': chunk})}\n\n"
+        yield f"data: {_json.dumps({'done': True})}\n\n"
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/chat", response_model=ChatResponse)

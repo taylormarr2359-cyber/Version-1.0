@@ -11,132 +11,150 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Themes ── */
     :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --border: #222;
-      --accent: #00d4ff;
-      --accent-dim: #007a99;
-      --text: #e8e8e8;
-      --text-dim: #888;
-      --user-bubble: #1a2e35;
-      --atlas-bubble: #141414;
-      --danger: #ff4444;
-      --radius: 16px;
+      --bg: #0a0a0a; --surface: #141414; --border: #222;
+      --accent: #00d4ff; --accent-dim: #007a99;
+      --text: #e8e8e8; --text-dim: #888;
+      --user-bubble: #1a2e35; --atlas-bubble: #141414;
+      --danger: #ff4444; --radius: 16px;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --input-bg: #0f0f0f;
+    }
+    .light {
+      --bg: #f0f2f5; --surface: #ffffff; --border: #dde1e7;
+      --accent: #0077aa; --accent-dim: #005577;
+      --text: #111; --text-dim: #555;
+      --user-bubble: #dbeeff; --atlas-bubble: #ffffff;
+      --input-bg: #f7f8fa;
     }
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
+    html, body { height: 100%; background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 15px;
-      overflow: hidden;
-    }
+      font-size: 15px; overflow: hidden; }
 
     /* ── Layout ── */
     #app { display: flex; flex-direction: column; height: 100dvh; }
 
     /* ── Header ── */
-    #header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 16px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    #header h1 { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
-    #status-dot {
-      width: 9px; height: 9px; border-radius: 50%;
-      background: #444; transition: background .3s;
-    }
+    #header { display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 8px; }
+    #header h1 { font-size: 18px; font-weight: 700; color: var(--accent);
+      letter-spacing: 2px; flex: 1; }
+    #status-dot { width: 9px; height: 9px; border-radius: 50%;
+      background: #444; transition: background .3s; flex-shrink: 0; }
     #status-dot.online { background: #4caf50; }
     #status-dot.error  { background: var(--danger); }
+    #settings-btn { background: none; border: none; color: var(--text-dim);
+      font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; }
+    #settings-btn:hover { color: var(--accent); }
 
     /* ── Quick actions ── */
-    #quick-bar {
-      display: flex; gap: 6px; padding: 8px 12px; overflow-x: auto;
+    #quick-bar { display: flex; gap: 6px; padding: 8px 12px; overflow-x: auto;
       background: var(--surface); border-bottom: 1px solid var(--border);
-      flex-shrink: 0; scrollbar-width: none;
-    }
+      flex-shrink: 0; scrollbar-width: none; }
     #quick-bar::-webkit-scrollbar { display: none; }
-    .qa-btn {
-      flex-shrink: 0; padding: 5px 12px; border-radius: 20px;
+    .qa-btn { flex-shrink: 0; padding: 5px 12px; border-radius: 20px;
       border: 1px solid var(--border); background: var(--bg);
       color: var(--text-dim); font-size: 12px; cursor: pointer;
-      white-space: nowrap; transition: border-color .2s, color .2s;
-    }
+      white-space: nowrap; transition: border-color .2s, color .2s; }
     .qa-btn:hover, .qa-btn:active { border-color: var(--accent); color: var(--accent); }
 
     /* ── Messages ── */
-    #messages {
-      flex: 1; overflow-y: auto; padding: 16px 12px;
-      display: flex; flex-direction: column; gap: 10px;
-      scroll-behavior: smooth;
-    }
-
+    #messages { flex: 1; overflow-y: auto; padding: 16px 12px;
+      display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
     .msg { max-width: 85%; display: flex; flex-direction: column; gap: 3px; }
     .msg.user  { align-self: flex-end; align-items: flex-end; }
     .msg.atlas { align-self: flex-start; align-items: flex-start; }
-
-    .bubble {
-      padding: 10px 14px; border-radius: var(--radius);
-      line-height: 1.5; word-break: break-word; white-space: pre-wrap;
-    }
+    .bubble { padding: 10px 14px; border-radius: var(--radius);
+      line-height: 1.55; word-break: break-word; }
     .msg.user  .bubble { background: var(--user-bubble); border-bottom-right-radius: 4px; }
-    .msg.atlas .bubble { background: var(--atlas-bubble); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-
+    .msg.atlas .bubble { background: var(--atlas-bubble); border: 1px solid var(--border);
+      border-bottom-left-radius: 4px; }
     .msg-label { font-size: 10px; color: var(--text-dim); padding: 0 4px; }
 
-    /* typing indicator */
+    /* ── Markdown inside bubbles ── */
+    .bubble h2,.bubble h3,.bubble h4 { margin: .6em 0 .3em; color: var(--accent); }
+    .bubble h2 { font-size: 1.1em; } .bubble h3 { font-size: 1em; }
+    .bubble h4 { font-size: .95em; }
+    .bubble p  { margin: .3em 0; }
+    .bubble ul,.bubble ol { padding-left: 1.4em; margin: .3em 0; }
+    .bubble li { margin: .15em 0; }
+    .bubble code { background: rgba(0,0,0,.3); border-radius: 4px;
+      padding: 1px 5px; font-family: monospace; font-size: .88em; }
+    .light .bubble code { background: rgba(0,0,0,.07); }
+    .bubble pre { background: rgba(0,0,0,.4); border-radius: 8px; padding: 10px 12px;
+      overflow-x: auto; margin: .4em 0; }
+    .light .bubble pre { background: rgba(0,0,0,.06); }
+    .bubble pre code { background: none; padding: 0; font-size: .85em; }
+    .bubble strong { font-weight: 600; }
+    .bubble em { font-style: italic; }
+    .bubble hr { border: none; border-top: 1px solid var(--border); margin: .5em 0; }
+
+    /* ── Typing indicator ── */
     .typing .bubble { display: flex; gap: 5px; align-items: center; padding: 14px; }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-dim); animation: blink 1.2s infinite; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-dim);
+      animation: blink 1.2s infinite; }
     .dot:nth-child(2) { animation-delay: .2s; }
     .dot:nth-child(3) { animation-delay: .4s; }
     @keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
 
     /* ── Input area ── */
-    #input-area {
-      flex-shrink: 0;
-      padding: 10px 12px calc(10px + var(--safe-bottom));
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      display: flex; gap: 8px; align-items: flex-end;
-    }
-    #msg-input {
-      flex: 1; resize: none; background: var(--bg);
+    #input-area { flex-shrink: 0; padding: 10px 12px calc(10px + var(--safe-bottom));
+      background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; gap: 8px; align-items: flex-end; }
+    #msg-input { flex: 1; resize: none; background: var(--input-bg);
       border: 1px solid var(--border); border-radius: 12px;
       color: var(--text); font-size: 15px; padding: 10px 12px;
       max-height: 120px; outline: none; font-family: inherit;
-      line-height: 1.4; transition: border-color .2s;
-    }
+      line-height: 1.4; transition: border-color .2s; }
     #msg-input:focus { border-color: var(--accent-dim); }
     #msg-input::placeholder { color: var(--text-dim); }
-
-    .icon-btn {
-      flex-shrink: 0; width: 42px; height: 42px;
-      border-radius: 50%; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; transition: background .2s, transform .1s;
-    }
+    .icon-btn { flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%;
+      border: none; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 18px; transition: background .2s, transform .1s; }
     .icon-btn:active { transform: scale(.9); }
-
     #mic-btn  { background: var(--border); color: var(--text); }
     #mic-btn.recording { background: var(--danger); color: #fff; animation: pulse 1s infinite; }
     #send-btn { background: var(--accent); color: #000; }
     #tts-btn  { background: var(--border); color: var(--text); }
     #tts-btn.active { background: var(--accent-dim); color: #fff; }
-
     @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,.5)} 50%{box-shadow:0 0 0 8px rgba(255,68,68,0)} }
 
+    /* ── Settings overlay ── */
+    #settings-overlay { display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.55); z-index: 200; align-items: flex-end; }
+    #settings-overlay.open { display: flex; }
+    #settings-panel { background: var(--surface); width: 100%;
+      border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + var(--safe-bottom));
+      max-height: 85dvh; overflow-y: auto; }
+    .settings-header { display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; }
+    .settings-header h2 { font-size: 16px; font-weight: 600; }
+    #settings-close { background: none; border: none; font-size: 20px;
+      color: var(--text-dim); cursor: pointer; }
+    .setting-row { display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .setting-row label { flex: 1; font-size: 14px; }
+    .setting-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .setting-row input[type="text"] { flex: 1; background: var(--input-bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 6px 10px; font-size: 14px; outline: none; }
+    .setting-row input[type="checkbox"] { width: 18px; height: 18px;
+      accent-color: var(--accent); cursor: pointer; }
+    .setting-row select { background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 6px 10px;
+      font-size: 14px; outline: none; }
+    .setting-val { font-size: 12px; color: var(--text-dim); min-width: 28px; text-align: right; }
+    #s-clear-btn { margin-top: 18px; width: 100%; padding: 12px;
+      border-radius: 10px; border: 1px solid var(--danger);
+      background: none; color: var(--danger); cursor: pointer; font-size: 14px; }
+
     /* ── Toast ── */
-    #toast {
-      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
       background: #333; color: #fff; padding: 8px 18px; border-radius: 20px;
-      font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s;
-      z-index: 100;
-    }
+      font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 300; }
     #toast.show { opacity: 1; }
   </style>
 </head>
@@ -145,6 +163,7 @@
   <div id="header">
     <h1>ATLAS</h1>
     <div id="status-dot" title="Server connection"></div>
+    <button id="settings-btn" title="Settings">⚙</button>
   </div>
 
   <div id="quick-bar">
@@ -161,32 +180,122 @@
   <div id="messages"></div>
 
   <div id="input-area">
-    <button id="mic-btn" class="icon-btn" title="Voice input">🎙</button>
+    <button id="mic-btn" class="icon-btn" title="Voice input (Google Speech)">🎙</button>
     <textarea id="msg-input" rows="1" placeholder="Message ATLAS…" autocomplete="off" spellcheck="true"></textarea>
     <button id="tts-btn" class="icon-btn" title="Toggle voice reply">🔊</button>
     <button id="send-btn" class="icon-btn" title="Send">➤</button>
   </div>
 </div>
+
+<!-- Settings overlay -->
+<div id="settings-overlay">
+  <div id="settings-panel">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button id="settings-close">✕</button>
+    </div>
+
+    <div class="setting-row">
+      <label for="s-tts-enabled">Voice reply</label>
+      <input type="checkbox" id="s-tts-enabled" />
+    </div>
+    <div class="setting-row">
+      <label for="s-tts-rate">Speech rate</label>
+      <input type="range" id="s-tts-rate" min="0.5" max="2" step="0.1" />
+      <span class="setting-val" id="s-tts-rate-val">1.0×</span>
+    </div>
+    <div class="setting-row">
+      <label for="s-stt-lang">Recognition language</label>
+      <input type="text" id="s-stt-lang" placeholder="en-US" />
+    </div>
+    <div class="setting-row">
+      <label for="s-theme">Theme</label>
+      <select id="s-theme">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+    </div>
+
+    <button id="s-clear-btn">🗑 Clear chat history</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
 "use strict";
 
-// ── State ────────────────────────────────────────────────────────────────────
-const state = {
-  ttsEnabled: localStorage.getItem("atlas_tts") !== "0",
-  recording: false,
-  recognition: null,
+// ── Apply theme before first paint ────────────────────────────────────────────
+(function () {
+  if (localStorage.getItem("atlas_theme") === "light")
+    document.body.classList.add("light");
+})();
+
+// ── Elements ──────────────────────────────────────────────────────────────────
+const msgList      = document.getElementById("messages");
+const input        = document.getElementById("msg-input");
+const sendBtn      = document.getElementById("send-btn");
+const micBtn       = document.getElementById("mic-btn");
+const ttsBtn       = document.getElementById("tts-btn");
+const statusDot    = document.getElementById("status-dot");
+const toast        = document.getElementById("toast");
+const settingsBtn  = document.getElementById("settings-btn");
+const settingsOvl  = document.getElementById("settings-overlay");
+const settingsClose = document.getElementById("settings-close");
+
+// ── Settings state ─────────────────────────────────────────────────────────
+const cfg = {
+  get ttsEnabled() { return localStorage.getItem("atlas_tts") !== "0"; },
+  set ttsEnabled(v) { localStorage.setItem("atlas_tts", v ? "1" : "0"); },
+
+  get ttsRate() { return parseFloat(localStorage.getItem("atlas_tts_rate") || "1.0"); },
+  set ttsRate(v) { localStorage.setItem("atlas_tts_rate", String(v)); },
+
+  get sttLang() { return localStorage.getItem("atlas_stt_lang") || navigator.language || "en-US"; },
+  set sttLang(v) { localStorage.setItem("atlas_stt_lang", v); },
+
+  get theme() { return localStorage.getItem("atlas_theme") || "dark"; },
+  set theme(v) { localStorage.setItem("atlas_theme", v); },
 };
 
-// ── Elements ─────────────────────────────────────────────────────────────────
-const msgList   = document.getElementById("messages");
-const input     = document.getElementById("msg-input");
-const sendBtn   = document.getElementById("send-btn");
-const micBtn    = document.getElementById("mic-btn");
-const ttsBtn    = document.getElementById("tts-btn");
-const statusDot = document.getElementById("status-dot");
-const toast     = document.getElementById("toast");
+// ── Settings panel ────────────────────────────────────────────────────────────
+const sTtsEnabled = document.getElementById("s-tts-enabled");
+const sTtsRate    = document.getElementById("s-tts-rate");
+const sTtsRateVal = document.getElementById("s-tts-rate-val");
+const sSttLang    = document.getElementById("s-stt-lang");
+const sTheme      = document.getElementById("s-theme");
+const sClearBtn   = document.getElementById("s-clear-btn");
+
+function loadSettingsUI() {
+  sTtsEnabled.checked = cfg.ttsEnabled;
+  sTtsRate.value      = cfg.ttsRate;
+  sTtsRateVal.textContent = cfg.ttsRate.toFixed(1) + "×";
+  sSttLang.value      = cfg.sttLang;
+  sTheme.value        = cfg.theme;
+}
+
+sTtsEnabled.addEventListener("change", () => { cfg.ttsEnabled = sTtsEnabled.checked; updateTtsBtn(); });
+sTtsRate.addEventListener("input", () => {
+  const v = parseFloat(sTtsRate.value);
+  cfg.ttsRate = v;
+  sTtsRateVal.textContent = v.toFixed(1) + "×";
+});
+sSttLang.addEventListener("change", () => { cfg.sttLang = sSttLang.value.trim() || "en-US"; });
+sTheme.addEventListener("change", () => {
+  cfg.theme = sTheme.value;
+  document.body.classList.toggle("light", sTheme.value === "light");
+});
+sClearBtn.addEventListener("click", () => {
+  if (!confirm("Clear all chat history?")) return;
+  localStorage.removeItem("atlas_history");
+  msgList.innerHTML = "";
+  appendAtlasMsg("Chat history cleared.");
+  settingsOvl.classList.remove("open");
+});
+
+settingsBtn.addEventListener("click", () => { loadSettingsUI(); settingsOvl.classList.add("open"); });
+settingsClose.addEventListener("click", () => settingsOvl.classList.remove("open"));
+settingsOvl.addEventListener("click", (e) => { if (e.target === settingsOvl) settingsOvl.classList.remove("open"); });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 let _toastTimer;
@@ -194,30 +303,89 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add("show");
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => toast.classList.remove("show"), 2500);
+  _toastTimer = setTimeout(() => toast.classList.remove("show"), 2800);
+}
+
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+function renderMarkdown(raw) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // Protect fenced code blocks first
+  const blocks = [];
+  let s = raw.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const ph = `\x00B${blocks.length}\x00`;
+    blocks.push(`<pre><code>${esc(code.trimEnd())}</code></pre>`);
+    return ph;
+  });
+
+  // Inline code
+  s = s.replace(/`([^`\n]+)`/g, (_, c) => `<code>${esc(c)}</code>`);
+
+  // Inline formatting helper (applied after HTML-escaping a line)
+  const inline = (t) => t
+    .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, "<em>$1</em>");
+
+  const lines = s.split("\n");
+  const out = [];
+  let listType = null;
+  const closeList = () => { if (listType) { out.push(`</${listType}>`); listType = null; } };
+
+  for (const line of lines) {
+    // Code block placeholder (standalone line)
+    if (/^\x00B\d+\x00$/.test(line.trim())) { closeList(); out.push(line.trim()); continue; }
+
+    // Heading
+    const hm = line.match(/^(#{1,4}) (.+)/);
+    if (hm) { closeList(); const lvl = Math.min(hm[1].length + 1, 5); out.push(`<h${lvl}>${inline(esc(hm[2]))}</h${lvl}>`); continue; }
+
+    // HR
+    if (/^---+$/.test(line.trim())) { closeList(); out.push("<hr>"); continue; }
+
+    // Unordered list
+    const ulm = line.match(/^[*\-] (.+)/);
+    if (ulm) { if (listType !== "ul") { closeList(); out.push("<ul>"); listType = "ul"; } out.push(`<li>${inline(esc(ulm[1]))}</li>`); continue; }
+
+    // Ordered list
+    const olm = line.match(/^\d+\. (.+)/);
+    if (olm) { if (listType !== "ol") { closeList(); out.push("<ol>"); listType = "ol"; } out.push(`<li>${inline(esc(olm[1]))}</li>`); continue; }
+
+    // Empty line
+    if (!line.trim()) { closeList(); out.push("<br>"); continue; }
+
+    // Normal line
+    closeList();
+    out.push(`<p>${inline(esc(line))}</p>`);
+  }
+  closeList();
+
+  let result = out.join("");
+  // Restore code blocks (may appear mid-result or as standalone)
+  blocks.forEach((b, i) => { result = result.split(`\x00B${i}\x00`).join(b); });
+  return result;
 }
 
 // ── TTS (Web Speech Synthesis) ────────────────────────────────────────────────
 function speak(text) {
-  if (!state.ttsEnabled || !window.speechSynthesis) return;
+  if (!cfg.ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
-  utt.rate  = 1.05;
+  utt.rate  = cfg.ttsRate;
   utt.pitch = 0.9;
   window.speechSynthesis.speak(utt);
 }
 
 function updateTtsBtn() {
-  ttsBtn.classList.toggle("active", state.ttsEnabled);
-  ttsBtn.title = state.ttsEnabled ? "Voice reply ON" : "Voice reply OFF";
+  ttsBtn.classList.toggle("active", cfg.ttsEnabled);
+  ttsBtn.title = cfg.ttsEnabled ? "Voice reply ON" : "Voice reply OFF";
 }
 updateTtsBtn();
 
 ttsBtn.addEventListener("click", () => {
-  state.ttsEnabled = !state.ttsEnabled;
-  localStorage.setItem("atlas_tts", state.ttsEnabled ? "1" : "0");
+  cfg.ttsEnabled = !cfg.ttsEnabled;
   updateTtsBtn();
-  showToast(state.ttsEnabled ? "Voice reply enabled" : "Voice reply disabled");
+  showToast(cfg.ttsEnabled ? "Voice reply enabled" : "Voice reply disabled");
 });
 
 // ── Voice input (Google Speech Recognition via Web Speech API) ────────────────
@@ -225,208 +393,231 @@ ttsBtn.addEventListener("click", () => {
 // cloud Speech-to-Text engine. Interim results stream in real time as you speak.
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-// Human-readable messages for every Google STT error code
 const STT_ERRORS = {
-  "not-allowed":       "Microphone access denied. Allow it in Chrome → Site Settings.",
-  "network":           "Network error — Google Speech needs an internet connection.",
-  "no-speech":         "No speech detected. Try speaking louder or closer to the mic.",
-  "audio-capture":     "Microphone not found. Check your device audio settings.",
-  "service-not-allowed": "Speech service blocked. Try reloading the page.",
-  "bad-grammar":       "Unrecognised speech grammar configuration.",
+  "not-allowed":            "Microphone access denied. Allow it in Chrome → Site Settings.",
+  "network":                "Network error — Google Speech needs an internet connection.",
+  "no-speech":              "No speech detected. Try speaking louder or closer to the mic.",
+  "audio-capture":          "Microphone not found. Check your device audio settings.",
+  "service-not-allowed":    "Speech service blocked. Try reloading the page.",
+  "bad-grammar":            "Unrecognised speech grammar configuration.",
   "language-not-supported": "Language not supported by Google Speech.",
-  "aborted":           "Recognition was aborted.",
+  "aborted":                "Recognition was aborted.",
 };
 
-// Detect saved language preference (default: browser language or en-US)
-const _savedLang = localStorage.getItem("atlas_stt_lang") ||
-                   navigator.language || "en-US";
-
-// Track whether the final result was already sent so onend doesn't double-fire
 let _finalSent = false;
+const recState = { rec: null, recording: false };
 
 if (SpeechRecognition) {
   const rec = new SpeechRecognition();
-  rec.lang            = _savedLang;
-  rec.interimResults  = true;   // stream partial results live into the input
+  rec.interimResults  = true;
   rec.maxAlternatives = 1;
-  rec.continuous      = false;  // one utterance per tap — cleaner for commands
+  rec.continuous      = false;
 
-  // Stream interim text into the input in real time, send on final result
   rec.onresult = (e) => {
-    let interimText = "";
-    let finalText   = "";
-
+    let interimText = "", finalText = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript;
       if (e.results[i].isFinal) finalText += t;
       else interimText += t;
     }
-
     if (finalText.trim()) {
-      // Final: fill the input, auto-resize, then send
       input.value = finalText.trim();
+      input.style.fontStyle = ""; input.style.color = "";
       autoResize();
       _finalSent = true;
       stopRecording();
       sendMessage(finalText.trim());
     } else if (interimText) {
-      // Interim: show a live preview in the input (italic-style via placeholder)
       input.value = interimText;
       input.style.fontStyle = "italic";
       input.style.color = "var(--text-dim)";
       autoResize();
     }
   };
-
-  rec.onerror = (e) => {
-    const msg = STT_ERRORS[e.error] || ("Speech error: " + e.error);
-    showToast(msg);
-    stopRecording();
-  };
-
-  rec.onend = () => {
-    // If recognition ended without a final result (e.g. user tapped stop mid-word),
-    // keep whatever text is in the box so the user can edit before sending.
+  rec.onerror = (e) => { showToast(STT_ERRORS[e.error] || "Speech error: " + e.error); stopRecording(); };
+  rec.onend   = () => {
     if (!_finalSent && input.value.trim()) {
-      input.style.fontStyle = "";
-      input.style.color = "";
-      // Don't auto-send — user stopped deliberately; let them edit or tap send
+      input.style.fontStyle = ""; input.style.color = "";
     } else if (!_finalSent) {
-      input.value = "";
-      input.style.fontStyle = "";
-      input.style.color = "";
-      autoResize();
+      input.value = ""; input.style.fontStyle = ""; input.style.color = ""; autoResize();
     }
     stopRecording();
   };
-
-  state.recognition = rec;
+  recState.rec = rec;
 } else {
   micBtn.style.display = "none";
 }
 
 function startRecording() {
-  if (!state.recognition || state.recording) return;
+  if (!recState.rec || recState.recording) return;
   _finalSent = false;
-  // Reset input styling from any previous interim text
-  input.style.fontStyle = "";
-  input.style.color = "";
-  state.recognition.lang = localStorage.getItem("atlas_stt_lang") ||
-                            navigator.language || "en-US";
-  state.recognition.start();
-  state.recording = true;
+  input.style.fontStyle = ""; input.style.color = "";
+  recState.rec.lang = cfg.sttLang;
+  recState.rec.start();
+  recState.recording = true;
   micBtn.classList.add("recording");
   micBtn.title = "Listening… tap to stop";
   input.placeholder = "Listening…";
 }
 
 function stopRecording() {
-  if (!state.recording) return;
-  state.recording = false;
+  if (!recState.recording) return;
+  recState.recording = false;
   micBtn.classList.remove("recording");
   micBtn.title = "Voice input (Google Speech)";
   input.placeholder = "Message ATLAS…";
-  // Restore input text style in case we stopped during interim
-  input.style.fontStyle = "";
-  input.style.color = "";
-  try { state.recognition && state.recognition.stop(); } catch (_) {}
+  input.style.fontStyle = ""; input.style.color = "";
+  try { recState.rec && recState.rec.stop(); } catch (_) {}
 }
 
-micBtn.addEventListener("click", () => {
-  if (state.recording) stopRecording();
-  else startRecording();
-});
+micBtn.addEventListener("click", () => { if (recState.recording) stopRecording(); else startRecording(); });
 
 // ── Server status ─────────────────────────────────────────────────────────────
 async function checkHealth() {
   try {
     const r = await fetch("/health", { cache: "no-store" });
     statusDot.className = r.ok ? "online" : "error";
-  } catch {
-    statusDot.className = "error";
-  }
+  } catch { statusDot.className = "error"; }
 }
 checkHealth();
 setInterval(checkHealth, 30_000);
 
-// ── Message rendering ─────────────────────────────────────────────────────────
-function appendMsg(role, text, id) {
-  const div = document.createElement("div");
-  div.className = "msg " + role;
-  if (id) div.id = id;
+// ── Chat history persistence ──────────────────────────────────────────────────
+const MAX_HISTORY = 60;
+let chatHistory = [];
 
-  const label = document.createElement("div");
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem("atlas_history");
+    if (raw) chatHistory = JSON.parse(raw);
+  } catch { chatHistory = []; }
+}
+
+function saveHistory() {
+  if (chatHistory.length > MAX_HISTORY) chatHistory = chatHistory.slice(-MAX_HISTORY);
+  try { localStorage.setItem("atlas_history", JSON.stringify(chatHistory)); } catch (_) {}
+}
+
+// ── Message rendering ─────────────────────────────────────────────────────────
+function _createMsgEl(role, htmlContent) {
+  const div    = document.createElement("div");
+  div.className = "msg " + role;
+  const label  = document.createElement("div");
   label.className = "msg-label";
   label.textContent = role === "user" ? "You" : "ATLAS";
-
   const bubble = document.createElement("div");
   bubble.className = "bubble";
-  bubble.textContent = text;
-
+  if (role === "atlas") bubble.innerHTML = htmlContent;
+  else bubble.textContent = htmlContent; // user text is plain, no markdown
   div.appendChild(label);
   div.appendChild(bubble);
-  msgList.appendChild(div);
-  msgList.scrollTop = msgList.scrollHeight;
   return div;
+}
+
+function appendMsg(role, text) {
+  const html = role === "atlas" ? renderMarkdown(text) : text;
+  const el = _createMsgEl(role, html);
+  msgList.appendChild(el);
+  msgList.scrollTop = msgList.scrollHeight;
+  return el;
+}
+
+// Returns the bubble element so caller can update it during streaming
+function appendStreamingMsg() {
+  const el = _createMsgEl("atlas", "");
+  msgList.appendChild(el);
+  msgList.scrollTop = msgList.scrollHeight;
+  return el.querySelector(".bubble");
 }
 
 function showTyping() {
   const div = document.createElement("div");
-  div.className = "msg atlas typing";
-  div.id = "_typing";
+  div.className = "msg atlas typing"; div.id = "_typing";
   div.innerHTML = `<div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
   msgList.appendChild(div);
   msgList.scrollTop = msgList.scrollHeight;
 }
 
-function removeTyping() {
-  const t = document.getElementById("_typing");
-  if (t) t.remove();
-}
+function removeTyping() { const t = document.getElementById("_typing"); if (t) t.remove(); }
 
-// ── API ───────────────────────────────────────────────────────────────────────
+// ── Send message (streaming) ──────────────────────────────────────────────────
 async function sendMessage(text) {
-  const trimmed = (text || input.value).trim();
+  const trimmed = (text !== undefined ? text : input.value).trim();
   if (!trimmed) return;
+  input.value = ""; autoResize();
 
-  input.value = "";
-  autoResize();
+  // Append user message
   appendMsg("user", trimmed);
+  chatHistory.push({ role: "user", text: trimmed });
+
   showTyping();
 
   try {
-    const res = await fetch("/chat", {
+    const resp = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: trimmed, speak: false }),
     });
-    const data = await res.json();
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     removeTyping();
-    const reply = data.response || data.detail || "No response.";
-    appendMsg("atlas", reply);
-    speak(reply);
+
+    const bubble = appendStreamingMsg();
+    let fullText = "";
+    let buffer   = "";
+
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.token) {
+            fullText += data.token;
+            // Stream plain text live, render markdown on each chunk
+            bubble.innerHTML = renderMarkdown(fullText);
+            msgList.scrollTop = msgList.scrollHeight;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Final canonical markdown render
+    bubble.innerHTML = renderMarkdown(fullText);
+    msgList.scrollTop = msgList.scrollHeight;
+
+    chatHistory.push({ role: "atlas", text: fullText });
+    saveHistory();
+    speak(fullText);
+
   } catch (err) {
     removeTyping();
     const msg = "Connection error — is the ATLAS server running?";
     appendMsg("atlas", msg);
+    chatHistory.push({ role: "atlas", text: msg });
+    saveHistory();
   }
 }
 
-// ── Input auto-resize & submit ────────────────────────────────────────────────
+// ── Input helpers ─────────────────────────────────────────────────────────────
 function autoResize() {
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 120) + "px";
 }
 
 input.addEventListener("input", autoResize);
-
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
-
 sendBtn.addEventListener("click", () => sendMessage());
 
 // ── Quick actions ─────────────────────────────────────────────────────────────
@@ -439,8 +630,18 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/static/sw.js").catch(() => {});
 }
 
-// ── Welcome message ───────────────────────────────────────────────────────────
-appendMsg("atlas", "Hello. I'm ATLAS. How can I assist you today?\nTry \"briefing\", \"plan my day\", or tap a quick action above.");
+// ── Init: restore history then show welcome ───────────────────────────────────
+loadHistory();
+
+if (chatHistory.length > 0) {
+  chatHistory.forEach(({ role, text }) => appendMsg(role, text));
+} else {
+  appendMsg("atlas", "Hello. I'm ATLAS. How can I assist you today?\nTry \"briefing\", \"plan my day\", or tap a quick action above.");
+  chatHistory.push({ role: "atlas", text: "Hello. I'm ATLAS. How can I assist you today?\nTry \"briefing\", \"plan my day\", or tap a quick action above." });
+  saveHistory();
+}
+
+msgList.scrollTop = msgList.scrollHeight;
 </script>
 </body>
 </html>

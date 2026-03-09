@@ -1,4 +1,6 @@
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List
 
 
@@ -50,3 +52,22 @@ class ConversationMemory:
         if not self.items:
             return "No prior context."
         return " | ".join(self.recent(5))
+
+    def save(self, path: Path) -> None:
+        """Persist memory items to a JSON file. Silently ignores write errors."""
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(self.items, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+    def load(self, path: Path) -> None:
+        """Load memory items from a JSON file. Silently ignores missing/corrupt files."""
+        if not path.exists():
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                self.items = [str(x) for x in data][-self.max_items :]
+        except Exception:
+            pass
