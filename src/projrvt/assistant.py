@@ -43,6 +43,15 @@ class AtlasAssistant:
         elif lowered in {"unmute", "unmute voice"}:
             self.voice_muted = False
             text = "Voice output unmuted."
+        elif lowered in {"clear memory", "reset memory", "forget"}:
+            self.memory.clear()
+            text = "Memory cleared."
+        elif lowered in {"history", "show history", "memory"}:
+            items = self.memory.recent(20)
+            if not items:
+                text = "No conversation history yet."
+            else:
+                text = "Recent history:\n" + "\n".join(f"  {i}" for i in items)
         elif lowered.startswith("plan "):
             objective = user_text.split(" ", 1)[1].strip()
             steps = self.engine.plan(objective)
@@ -123,10 +132,13 @@ class AtlasAssistant:
                 memory_items=len(self.memory.recent(200)),
                 voice_muted=self.voice_muted,
                 wake_word=get_wake_word(),
+                api_key_loaded=bool(load_anthropic_api_key()),
             )
             text = redact_secrets(snapshot.to_text())
         else:
-            memory_summary = self.memory.summary()
+            # Use relevant memory items for smarter LLM context.
+            relevant = self.memory.relevant(user_text, top_k=5)
+            memory_summary = " | ".join(relevant) if relevant else self.memory.summary()
             engine_response = self.engine.reply(user_text, memory_summary)
             text = engine_response.text
 

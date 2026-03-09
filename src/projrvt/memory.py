@@ -6,13 +6,16 @@ from typing import List
 
 @dataclass
 class ConversationMemory:
-    max_items: int = 20
+    max_items: int = 100
     items: List[str] = field(default_factory=list)
 
     def add(self, text: str) -> None:
         self.items.append(text)
         if len(self.items) > self.max_items:
             self.items = self.items[-self.max_items :]
+
+    def clear(self) -> None:
+        self.items = []
 
     def recent(self, n: int = 5) -> List[str]:
         n = max(1, n)
