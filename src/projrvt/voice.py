@@ -106,6 +106,7 @@ class VoiceEngine:
         await communicate.save(str(output_file))
 
     def _speak_cloud(self, text: str) -> bool:
+        temp_path: Path | None = None
         try:
             from playsound import playsound
 
@@ -114,10 +115,12 @@ class VoiceEngine:
 
             asyncio.run(self._edge_speak_async(text, temp_path))
             playsound(str(temp_path))
-            temp_path.unlink(missing_ok=True)
             return True
         except Exception:
             return False
+        finally:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
 
     def stop(self) -> None:
         if self._engine is None:

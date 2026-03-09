@@ -1,10 +1,30 @@
 from __future__ import annotations
 
 import json
+import logging
+import tempfile
+import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+_MAX_TITLE = 500
+_MAX_TEXT = 2_000
+_MAX_BODY = 8_000
+
+_file_locks: dict[str, threading.Lock] = {}
+_file_locks_mutex = threading.Lock()
+
+
+def _get_file_lock(path: Path) -> threading.Lock:
+    key = str(path.resolve())
+    with _file_locks_mutex:
+        if key not in _file_locks:
+            _file_locks[key] = threading.Lock()
+        return _file_locks[key]
 
 
 @dataclass
@@ -29,11 +49,33 @@ class IntegrationsHub:
             return default
         try:
             return json.loads(file_path.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to read %s (%s); using default.", file_path.name, exc)
             return default
 
     def _write_json(self, file_path: Path, value: Any) -> None:
-        file_path.write_text(json.dumps(value, indent=2), encoding="utf-8")
+        """Atomic write: write to a temp file then rename to prevent corruption."""
+        lock = _get_file_lock(file_path)
+        with lock:
+            try:
+                tmp_fd, tmp_path_str = tempfile.mkstemp(
+                    dir=file_path.parent, prefix=".tmp_", suffix=".json"
+                )
+                tmp_path = Path(tmp_path_str)
+                try:
+                    with open(tmp_fd, "w", encoding="utf-8") as f:
+                        json.dump(value, f, indent=2)
+                    tmp_path.replace(file_path)
+                except Exception:
+                    tmp_path.unlink(missing_ok=True)
+                    raise
+            except Exception as exc:
+                logger.error("Failed to write %s: %s", file_path.name, exc)
+                raise
+
+    @staticmethod
+    def _now_iso() -> str:
+        return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     def weather(self, location: str) -> IntegrationResult:
         now = datetime.now().strftime("%H:%M")
@@ -68,8 +110,8 @@ class IntegrationsHub:
         return IntegrationResult(ok=True, message=f"Deleted event: {removed.get('title', '')} @ {removed.get('when', '')}")
 
     def calendar_add(self, title: str, when: str) -> IntegrationResult:
-        clean_title = (title or "").strip()
-        clean_when = (when or "").strip()
+        clean_title = (title or "").strip()[:_MAX_TITLE]
+        clean_when = (when or "").strip()[:_MAX_TITLE]
         if not clean_title or not clean_when:
             return IntegrationResult(ok=False, message="calendar add requires: <title> | <when>")
         events = self._read_json(self._calendar_file, [])
@@ -77,7 +119,7 @@ class IntegrationsHub:
             {
                 "title": clean_title,
                 "when": clean_when,
-                "created_at": datetime.utcnow().isoformat() + "Z",
+                "created_at": self._now_iso(),
             }
         )
         self._write_json(self._calendar_file, events)
@@ -98,9 +140,9 @@ class IntegrationsHub:
         return IntegrationResult(ok=True, message="\n".join(lines))
 
     def email_send(self, to: str, subject: str, body: str) -> IntegrationResult:
-        clean_to = (to or "").strip()
-        clean_subject = (subject or "").strip()
-        clean_body = (body or "").strip()
+        clean_to = (to or "").strip()[:_MAX_TITLE]
+        clean_subject = (subject or "").strip()[:_MAX_TITLE]
+        clean_body = (body or "").strip()[:_MAX_BODY]
         if not clean_to or not clean_subject or not clean_body:
             return IntegrationResult(ok=False, message="email send requires: <to> | <subject> | <body>")
         outbox = self._read_json(self._email_file, [])
@@ -110,7 +152,7 @@ class IntegrationsHub:
                 "subject": clean_subject,
                 "body": clean_body,
                 "status": "queued",
-                "created_at": datetime.utcnow().isoformat() + "Z",
+                "created_at": self._now_iso(),
             }
         )
         self._write_json(self._email_file, outbox)
@@ -129,11 +171,11 @@ class IntegrationsHub:
         return IntegrationResult(ok=True, message="\n".join(lines))
 
     def notes_add(self, text: str) -> IntegrationResult:
-        clean_text = (text or "").strip()
+        clean_text = (text or "").strip()[:_MAX_TEXT]
         if not clean_text:
             return IntegrationResult(ok=False, message="notes add requires text.")
         notes = self._read_json(self._notes_file, [])
-        notes.append({"text": clean_text, "created_at": datetime.utcnow().isoformat() + "Z"})
+        notes.append({"text": clean_text, "created_at": self._now_iso()})
         self._write_json(self._notes_file, notes)
         return IntegrationResult(ok=True, message="Note saved.")
 

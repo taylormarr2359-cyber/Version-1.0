@@ -10,29 +10,33 @@ from __future__ import annotations
 
 import asyncio
 import json as _json
+import os
 import pathlib
+import threading
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .assistant import AtlasAssistant
 from .config import get_api_auth_key, get_wake_word
 
 # ---------------------------------------------------------------------------
-# Singleton assistant — shared across all requests
+# Singleton assistant — thread-safe lazy init
 # ---------------------------------------------------------------------------
 _assistant: Optional[AtlasAssistant] = None
+_assistant_lock = threading.Lock()
 
 
 def _get_assistant() -> AtlasAssistant:
     global _assistant
     if _assistant is None:
-        _assistant = AtlasAssistant()
+        with _assistant_lock:
+            if _assistant is None:
+                _assistant = AtlasAssistant()
     return _assistant
 
 
@@ -51,10 +55,15 @@ def _check_auth(authorization: Optional[str] = Header(default=None)) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Request / response models
+# Request / response models — field size limits prevent payload DoS
 # ---------------------------------------------------------------------------
+_MSG_MAX = 4_000   # characters
+_TEXT_MAX = 2_000
+_BODY_MAX = 8_000
+
+
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MSG_MAX)
     speak: bool = False
 
 
@@ -64,23 +73,23 @@ class ChatResponse(BaseModel):
 
 
 class CalendarAddRequest(BaseModel):
-    title: str
-    when: str
+    title: str = Field(..., max_length=_TEXT_MAX)
+    when: str = Field(..., max_length=_TEXT_MAX)
 
 
 class EmailSendRequest(BaseModel):
-    to: str
-    subject: str
-    body: str
+    to: str = Field(..., max_length=_TEXT_MAX)
+    subject: str = Field(..., max_length=_TEXT_MAX)
+    body: str = Field(..., max_length=_BODY_MAX)
 
 
 class NoteAddRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_TEXT_MAX)
 
 
 class SmartHomeSetRequest(BaseModel):
-    device: str
-    value: str
+    device: str = Field(..., max_length=64)
+    value: str = Field(..., max_length=64)
 
 
 # ---------------------------------------------------------------------------
@@ -92,12 +101,17 @@ app = FastAPI(
     description="Cross-platform REST API for the ATLAS personal assistant.",
 )
 
+# CORS: configurable via ATLAS_CORS_ORIGINS env var (comma-separated).
+# Defaults to same-origin only ("") which disables the wildcard.
+_raw_origins = os.environ.get("ATLAS_CORS_ORIGINS", "")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Serve the PWA static files at /static and / (index.html)
@@ -107,14 +121,25 @@ if _STATIC_DIR.exists():
 
 
 # ---------------------------------------------------------------------------
+# Global error handler — never leak tracebacks to clients
+# ---------------------------------------------------------------------------
+@app.exception_handler(Exception)
+async def _unhandled(_req: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error."},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 @app.get("/", include_in_schema=False)
 async def root() -> FileResponse:
     index = _STATIC_DIR / "index.html"
-    if index.exists():
-        return FileResponse(str(index))
-    return FileResponse(str(index))  # will 404 naturally if missing
+    if not index.exists():
+        raise HTTPException(status_code=404, detail="PWA not found.")
+    return FileResponse(str(index))
 
 
 @app.get("/health")
@@ -221,7 +246,7 @@ async def notes_search(
     assistant: AtlasAssistant = Depends(_get_assistant),
     _: None = Depends(_check_auth),
 ) -> dict:
-    result = assistant.integrations.notes_find(q)
+    result = assistant.integrations.notes_find(q[:_TEXT_MAX])
     return {"ok": result.ok, "message": result.message}
 
 
