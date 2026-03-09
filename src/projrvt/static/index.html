@@ -220,28 +220,86 @@ ttsBtn.addEventListener("click", () => {
   showToast(state.ttsEnabled ? "Voice reply enabled" : "Voice reply disabled");
 });
 
-// ── Voice input (Web Speech Recognition) ─────────────────────────────────────
+// ── Voice input (Google Speech Recognition via Web Speech API) ────────────────
+// On Android Chrome, window.webkitSpeechRecognition is backed by Google's
+// cloud Speech-to-Text engine. Interim results stream in real time as you speak.
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// Human-readable messages for every Google STT error code
+const STT_ERRORS = {
+  "not-allowed":       "Microphone access denied. Allow it in Chrome → Site Settings.",
+  "network":           "Network error — Google Speech needs an internet connection.",
+  "no-speech":         "No speech detected. Try speaking louder or closer to the mic.",
+  "audio-capture":     "Microphone not found. Check your device audio settings.",
+  "service-not-allowed": "Speech service blocked. Try reloading the page.",
+  "bad-grammar":       "Unrecognised speech grammar configuration.",
+  "language-not-supported": "Language not supported by Google Speech.",
+  "aborted":           "Recognition was aborted.",
+};
+
+// Detect saved language preference (default: browser language or en-US)
+const _savedLang = localStorage.getItem("atlas_stt_lang") ||
+                   navigator.language || "en-US";
+
+// Track whether the final result was already sent so onend doesn't double-fire
+let _finalSent = false;
 
 if (SpeechRecognition) {
   const rec = new SpeechRecognition();
-  rec.lang = "en-US";
-  rec.interimResults = false;
+  rec.lang            = _savedLang;
+  rec.interimResults  = true;   // stream partial results live into the input
   rec.maxAlternatives = 1;
+  rec.continuous      = false;  // one utterance per tap — cleaner for commands
 
+  // Stream interim text into the input in real time, send on final result
   rec.onresult = (e) => {
-    const transcript = e.results[0][0].transcript.trim();
-    if (transcript) {
-      input.value = transcript;
+    let interimText = "";
+    let finalText   = "";
+
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t;
+      else interimText += t;
+    }
+
+    if (finalText.trim()) {
+      // Final: fill the input, auto-resize, then send
+      input.value = finalText.trim();
       autoResize();
-      sendMessage(transcript);
+      _finalSent = true;
+      stopRecording();
+      sendMessage(finalText.trim());
+    } else if (interimText) {
+      // Interim: show a live preview in the input (italic-style via placeholder)
+      input.value = interimText;
+      input.style.fontStyle = "italic";
+      input.style.color = "var(--text-dim)";
+      autoResize();
     }
   };
+
   rec.onerror = (e) => {
-    showToast("Mic error: " + e.error);
+    const msg = STT_ERRORS[e.error] || ("Speech error: " + e.error);
+    showToast(msg);
     stopRecording();
   };
-  rec.onend = () => stopRecording();
+
+  rec.onend = () => {
+    // If recognition ended without a final result (e.g. user tapped stop mid-word),
+    // keep whatever text is in the box so the user can edit before sending.
+    if (!_finalSent && input.value.trim()) {
+      input.style.fontStyle = "";
+      input.style.color = "";
+      // Don't auto-send — user stopped deliberately; let them edit or tap send
+    } else if (!_finalSent) {
+      input.value = "";
+      input.style.fontStyle = "";
+      input.style.color = "";
+      autoResize();
+    }
+    stopRecording();
+  };
+
   state.recognition = rec;
 } else {
   micBtn.style.display = "none";
@@ -249,16 +307,28 @@ if (SpeechRecognition) {
 
 function startRecording() {
   if (!state.recognition || state.recording) return;
+  _finalSent = false;
+  // Reset input styling from any previous interim text
+  input.style.fontStyle = "";
+  input.style.color = "";
+  state.recognition.lang = localStorage.getItem("atlas_stt_lang") ||
+                            navigator.language || "en-US";
   state.recognition.start();
   state.recording = true;
   micBtn.classList.add("recording");
-  micBtn.title = "Recording… tap to stop";
+  micBtn.title = "Listening… tap to stop";
+  input.placeholder = "Listening…";
 }
 
 function stopRecording() {
+  if (!state.recording) return;
   state.recording = false;
   micBtn.classList.remove("recording");
-  micBtn.title = "Voice input";
+  micBtn.title = "Voice input (Google Speech)";
+  input.placeholder = "Message ATLAS…";
+  // Restore input text style in case we stopped during interim
+  input.style.fontStyle = "";
+  input.style.color = "";
   try { state.recognition && state.recognition.stop(); } catch (_) {}
 }
 
