@@ -1,4 +1,5 @@
 pytest
+httpx
 python-dotenv
 azure-identity
 azure-keyvault-secrets

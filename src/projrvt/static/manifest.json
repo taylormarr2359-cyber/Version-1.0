@@ -1,0 +1,17 @@
+{
+  "name": "ATLAS Assistant",
+  "short_name": "ATLAS",
+  "description": "Proactive personal assistant — works on any device",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00d4ff",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230a0a0a'/><text x='96' y='130' font-family='sans-serif' font-weight='bold' font-size='100' text-anchor='middle' fill='%2300d4ff'>A</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

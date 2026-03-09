@@ -12,6 +12,7 @@ This file provides guidance for AI assistants (Claude Code and similar) working 
 - Conversation memory, calendar, notes, email, and smart home integrations backed by local JSON files
 - Proactive briefing and pattern-based insight generation
 - Secret redaction and observability diagnostics
+- **FastAPI REST API** (`api.py`) + **Progressive Web App** (`static/`) for Android and cross-platform access with automatic sync
 
 **Package name:** `projrvt`
 **Version:** `1.0.0`
@@ -35,15 +36,22 @@ Version-1.0/
 │   ├── proactive.py          # Briefing + pattern-based insights
 │   ├── observability.py      # DiagnosticsSnapshot dataclass
 │   ├── security.py           # Secret redaction utilities
+│   ├── api.py                # FastAPI REST API (Android/cross-platform sync)
+│   ├── serve.py              # uvicorn entry point for the API server
+│   ├── static/
+│   │   ├── index.html        # Progressive Web App (installable on Android)
+│   │   ├── manifest.json     # PWA install manifest
+│   │   └── sw.js             # Service worker (offline shell caching)
 │   └── providers/
 │       └── blackbox_api.py   # Unified API provider (OpenAI-first + fallback)
-├── tests/                    # pytest test suite (21 tests)
+├── tests/                    # pytest test suite (39 tests)
 │   ├── test_basic.py
 │   ├── test_blackbox_api.py
 │   ├── test_security.py
 │   ├── test_phase2_5.py
 │   ├── test_proactive.py
-│   └── test_voice_hardening.py
+│   ├── test_voice_hardening.py
+│   └── test_api.py           # FastAPI endpoint tests (requires fastapi + httpx)
 ├── atlas_data/               # Local JSON persistence (git-tracked defaults)
 │   ├── calendar.json
 │   ├── notes.json
@@ -77,8 +85,19 @@ pip install -r requirements.txt
 ### Running the Assistant
 
 ```bash
-python -m projrvt.main
+python -m projrvt.main           # CLI mode (desktop / terminal)
 ```
+
+### Running the API Server (Android / cross-platform)
+
+```bash
+pip install -e ".[api]"          # install FastAPI + uvicorn (one-time)
+python -m projrvt.serve          # starts on http://0.0.0.0:8000
+```
+
+Open `http://<server-ip>:8000/` on any device (Android, iOS, desktop browser) to use the PWA. On Android Chrome, tap the browser menu → **"Add to Home Screen"** to install it as an app.
+
+Swagger docs are at `http://localhost:8000/docs`.
 
 ### Running Tests
 
@@ -129,6 +148,9 @@ Each module has a single, well-defined role. Do not cross concerns:
 | `security.py` | Secret redaction only |
 | `config.py` | Environment variable loading and default values |
 | `providers/blackbox_api.py` | HTTP-level API abstraction |
+| `api.py` | FastAPI REST endpoints — thin adapter over `AtlasAssistant` and `IntegrationsHub` |
+| `serve.py` | uvicorn server launcher; reads host/port from `config.py` |
+| `static/` | PWA shell (HTML/CSS/JS + service worker); no Python logic |
 
 ### Configuration Pattern
 
@@ -177,6 +199,26 @@ All `IntegrationsHub` methods must return an `IntegrationResult(ok: bool, messag
 - TTS runs on a background thread; `stop_speaking()` is interrupt-safe
 - Mute state is tracked in `VoiceEngine.muted` (bool)
 - Cloud TTS (edge-tts) is the fallback when `ATLAS_TTS_PROVIDER=cloud`
+- **On Android / PWA**: TTS and speech recognition use the browser's Web Speech API (`window.speechSynthesis`, `window.SpeechRecognition`) — `pyttsx3` is not involved
+
+### REST API & Cross-Platform Sync
+
+The FastAPI layer in `api.py` is the sync mechanism: all clients (Android, desktop browser, CLI) read and write through HTTP endpoints to the same `atlas_data/` JSON files on the server. There is no peer-to-peer or cloud sync — the server is the single source of truth.
+
+Key design rules:
+- `api.py` must not contain business logic; delegate everything to `AtlasAssistant` or `IntegrationsHub`
+- All endpoints share one `AtlasAssistant` singleton (module-level `_assistant`); do not instantiate per-request
+- CORS is enabled with `allow_origins=["*"]` — restrict this in production
+- Optional Bearer-token auth via `ATLAS_API_AUTH_KEY` env var; if unset, all endpoints are open
+- The `/chat` endpoint accepts `{"message": str, "speak": bool}` — `speak=True` triggers server-side TTS (only useful on desktop); the PWA always uses browser TTS instead
+
+### Progressive Web App (PWA)
+
+- `static/index.html` is a self-contained single-file app (no build step)
+- It talks to the API using relative URLs (`/chat`, `/calendar`, etc.) — always connects to its own server
+- `static/sw.js` caches the shell (`/`, `/static/manifest.json`) for offline display; API calls are network-first
+- To add new quick-action buttons, add `<button class="qa-btn" data-cmd="your command">` in the `#quick-bar` div — no JS changes needed
+- Do not introduce a JS framework or build toolchain; keep the frontend dependency-free
 
 ---
 
@@ -230,13 +272,15 @@ All tests must pass on all three Python versions before merging.
 
 | Task | Command |
 |---|---|
-| Run assistant | `python -m projrvt.main` |
+| Run assistant (CLI) | `python -m projrvt.main` |
+| Run API server | `python -m projrvt.serve` |
 | Run all tests | `pytest -q` |
 | Run specific test | `pytest tests/test_security.py -v` |
 | Format code | `black src/ tests/ && isort src/ tests/` |
 | Lint | `flake8 src/ tests/` |
 | All pre-commit checks | `pre-commit run --all-files` |
-| Install (editable) | `pip install -e .` |
+| Install (editable, CLI only) | `pip install -e .` |
+| Install (editable, with API) | `pip install -e ".[api]"` |
 
 ---
 
@@ -253,6 +297,9 @@ All tests must pass on all three Python versions before merging.
 | `ATLAS_WAKE_WORD` | `atlas` | Prefix keyword to trigger the assistant |
 | `ATLAS_VOICE_INTERRUPTIBLE` | `true` | Allow speech interruption |
 | `ATLAS_VOICE_TIMEOUT_SEC` | `10.0` | Voice synthesis timeout (clamped 1.0–30.0) |
+| `ATLAS_API_HOST` | `0.0.0.0` | API server bind address |
+| `ATLAS_API_PORT` | `8000` | API server port (clamped 1–65535) |
+| `ATLAS_API_AUTH_KEY` | `""` | Bearer token required on all API endpoints; empty = auth disabled |
 
 ---
 
@@ -263,3 +310,6 @@ All tests must pass on all three Python versions before merging.
 - **JSON edge cases**: The `tests/` directory contains `.json` fixture files simulating malformed API responses, large payloads, missing fields, and timeouts. Consult these before writing new provider tests.
 - **Memory window**: `ConversationMemory` holds 20 items by default. `relevant()` uses token-based scoring — avoid changing the window size without updating `test_phase2_5.py`.
 - **Timestamp format**: Always append `"Z"` to ISO timestamps in `atlas_data/` files — the briefing parser expects UTC-suffixed strings.
+- **API singleton state**: `api.py` holds one `AtlasAssistant` instance (`_assistant`) for the process lifetime. This means conversation memory is shared across all connected clients. This is intentional for the single-user case; be aware if adding multi-user auth.
+- **PWA auth header**: When `ATLAS_API_AUTH_KEY` is set, the PWA's `fetch` calls do not currently include the `Authorization` header — add it in `index.html`'s `sendMessage` function if you need authenticated PWA access.
+- **Testing the API**: `test_api.py` uses `fastapi.testclient.TestClient` which imports `httpx`. Both `fastapi` and `httpx` must be installed (`pip install -e ".[api]" && pip install httpx`). Tests are skipped gracefully if either is absent.
