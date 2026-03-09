@@ -109,12 +109,13 @@ class AtlasAssistant:
                 "- plan <objective>\n"
                 "- do <objective>\n"
                 "- weather <location>\n"
-                "- calendar list | calendar add <title> | <when>\n"
-                "- notes list | notes add <text> | notes find <query>\n"
+                "- calendar list | calendar add <title> | <when> | calendar delete <#>\n"
+                "- notes list | notes add <text> | notes find <query> | notes delete <#>\n"
                 "- email list | email send <to> | <subject> | <body>\n"
                 "- smart home status | smart home set <device> <value>\n"
                 "- diagnostics | voice diagnostics\n"
                 "- onboarding | briefing | insights\n"
+                "- history | clear memory\n"
                 "- mute/unmute | stop speaking"
             )
         elif lowered == "onboarding":

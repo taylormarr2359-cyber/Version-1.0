@@ -1,77 +1,106 @@
 # ATLAS (Version 1.0)
 
 ATLAS is a proactive personal assistant scaffold with:
+
 - Conversational assistant loop
 - Memory/context tracking
 - Voice output engine with deep-male prioritization and fallback
 - Integration hub stubs (weather, calendar, email, notes, smart home)
-- OpenAI-backed response engine with safe fallback mode
+- Anthropic Claude-backed response engine with safe fallback mode
 
 ## Quick Start
 
 1. Create and activate virtual environment:
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate
+   ```
 
-2. Install dependencies:
+1. Install dependencies:
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -e .
+   ```
 
-3. Set API key (recommended via environment variable):
+1. Set API key — create a `.env` file in the project root:
 
-```bash
-set OPENAI_API_KEY=your_key_here
-```
+   ```text
+   ANTHROPIC_API_KEY=your_key_here
+   ```
 
-Alternative: create `api_key.txt` in project root and paste the key there.
+   Get your key at [console.anthropic.com](https://console.anthropic.com).
 
-4. Configure ATLAS voice (deep male profile):
+   Alternative: set an environment variable directly:
 
-```bash
-set ATLAS_TTS_PROVIDER=local
-set ATLAS_TTS_VOICE=david
-set ATLAS_TTS_RATE=150
-set ATLAS_TTS_VOLUME=1.0
-set ATLAS_TTS_STYLE=calm_authoritative
-```
+   ```bash
+   # Windows CMD
+   set ANTHROPIC_API_KEY=your_key_here
 
-Notes:
-- `ATLAS_TTS_PROVIDER`: `local` (default) or `cloud` (cloud path currently placeholder with local fallback)
-- `ATLAS_TTS_VOICE`: preferred voice keyword/name (e.g. `david`, `mark`, `male`, `deep_male`)
-- `ATLAS_TTS_RATE`: clamped to 110..210 (lower usually sounds deeper/more natural)
-- `ATLAS_TTS_VOLUME`: clamped to 0.0..1.0
+   # PowerShell
+   $env:ANTHROPIC_API_KEY="your_key_here"
+   ```
 
-5. Run tests:
+   Or create `api_key.txt` in the project root and paste the key there.
 
-```bash
-pytest
-```
+1. Configure ATLAS voice (deep male profile):
 
-6. Run assistant:
+   ```bash
+   set ATLAS_TTS_PROVIDER=local
+   set ATLAS_TTS_VOICE=david
+   set ATLAS_TTS_RATE=150
+   set ATLAS_TTS_VOLUME=1.0
+   set ATLAS_TTS_STYLE=calm_authoritative
+   ```
 
-```bash
-python -m projrvt.main
-```
+   Notes:
+
+   - `ATLAS_TTS_PROVIDER`: `local` (default) or `cloud` (cloud path currently placeholder with local fallback)
+   - `ATLAS_TTS_VOICE`: preferred voice keyword/name (e.g. `david`, `mark`, `male`, `deep_male`)
+   - `ATLAS_TTS_RATE`: clamped to 110..210 (lower usually sounds deeper/more natural)
+   - `ATLAS_TTS_VOLUME`: clamped to 0.0..1.0
+
+1. Run tests:
+
+   ```bash
+   pytest
+   ```
+
+1. Run assistant:
+
+   ```bash
+   python -m projrvt.main
+   ```
+
+   Or use the launcher scripts in `scripts/`:
+
+   ```bash
+   # CMD
+   scripts\run_atlas.cmd
+
+   # PowerShell
+   scripts\run_atlas.ps1
+   ```
 
 ## Commands
 
-Inside CLI:
-- `atlas <message>` wake-word style
-- `plan <objective>` create a structured action plan
-- `do <objective>` execute with orchestration outline behavior
-- `mute` disable voice output
-- `unmute` re-enable voice output
-- `stop speaking` (aliases: `stop voice`, `silence`) interrupt current speech
+Inside the CLI:
+
+- `atlas <message>` — wake-word style
+- `plan <objective>` — create a structured action plan
+- `do <objective>` — execute with orchestration outline behavior
 - `weather <city>`
-- `calendar`
-- `email`
-- `notes`
-- `smart home`
+- `calendar list` | `calendar add <title> | <when>`
+- `email list` | `email send <to> | <subject> | <body>`
+- `notes list` | `notes add <text>` | `notes find <query>`
+- `smart home status` | `smart home set <device> <value>`
+- `diagnostics` — system health snapshot
+- `voice diagnostics` — TTS engine status
+- `onboarding` — getting-started guide
+- `briefing` — daily summary
+- `insights` — memory-based recommendations
+- `mute` / `unmute` — toggle voice output
+- `stop speaking` (aliases: `stop voice`, `silence`) — interrupt speech
 - `exit`
 
 ## Runtime Environment Controls
@@ -91,12 +120,9 @@ set ATLAS_VOICE_TIMEOUT_SEC=8
 ## Test Status Snapshot
 
 Validated in this environment:
-- Unit tests: `pytest -q` => `21/21` passing.
-- Backend/API curl matrix:
-  - valid auth + valid JSON => `200`
-  - invalid auth => `401`
-  - malformed JSON => `400`
-  - invalid endpoint => `404`
+
+- Unit tests: `pytest -q` — all passing.
+- Live LLM: Anthropic `claude-opus-4-6` with adaptive thinking and streaming.
 
 ## Remote Access (Outside Home)
 
@@ -154,4 +180,4 @@ Then add `Authorization: Bearer your-secret-token` to requests, or add it in `st
 
 ## Security Note
 
-Do not commit API keys to git. Prefer environment variables for secrets.
+Do not commit API keys to git. Use a `.env` file or environment variables. The `.env` file is listed in `.gitignore`.
