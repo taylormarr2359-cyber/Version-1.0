@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#00d4ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>ATLAS</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Themes ── */
+    :root {
+      --bg: #060810; --surface: #0d0f18; --border: #1a2030;
+      --accent: #00d4ff; --accent-dim: #007a99;
+      --gold: #ffd060; --gold-dim: #996600;
+      --text: #d8e8f0; --text-dim: #6080a0;
+      --user-bubble: #0d1e2a; --atlas-bubble: #0d0f18;
+      --danger: #ff4444; --radius: 14px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --input-bg: #08090f;
+      --font-display: 'Orbitron', monospace;
+      --font-mono: 'Share Tech Mono', monospace;
+    }
+    .light {
+      --bg: #f0f2f5; --surface: #ffffff; --border: #dde1e7;
+      --accent: #0077aa; --accent-dim: #005577;
+      --gold: #cc7700; --gold-dim: #885500;
+      --text: #111; --text-dim: #555;
+      --user-bubble: #dbeeff; --atlas-bubble: #ffffff;
+      --input-bg: #f7f8fa;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px; overflow: hidden; }
+
+    /* ── Layout ── */
+    #app { display: flex; flex-direction: column; height: 100dvh; }
+
+    /* ── Header ── */
+    #header { display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 8px; }
+    #header h1 {
+      font-size: 17px; font-weight: 700; color: var(--accent);
+      letter-spacing: 5px; flex: 1; font-family: var(--font-display);
+      text-shadow: 0 0 14px rgba(0,212,255,0.55);
+    }
+    #status-dot { width: 8px; height: 8px; border-radius: 50%;
+      background: #333; transition: background .3s; flex-shrink: 0; }
+    #status-dot.online { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+    #status-dot.error  { background: var(--danger); }
+    #settings-btn { background: none; border: none; color: var(--text-dim);
+      font-size: 17px; cursor: pointer; padding: 4px; line-height: 1; }
+    #settings-btn:hover { color: var(--accent); }
+
+    /* ── JARVIS Face Section ── */
+    #face-section {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #040608;
+      padding: 10px 0 8px;
+      border-bottom: 1px solid #0d1520;
+      position: relative;
+      overflow: hidden;
+    }
+    #face-canvas {
+      display: block;
+      width: 100%;
+      max-width: 340px;
+      height: 190px;
+    }
+    #face-status {
+      font-size: 9px;
+      letter-spacing: 5px;
+      color: var(--accent-dim);
+      margin-top: 5px;
+      text-transform: uppercase;
+      font-family: var(--font-display);
+      transition: color .4s;
+      user-select: none;
+    }
+    #face-status.listening { color: var(--accent); animation: statusPulse .7s infinite; }
+    #face-status.thinking  { color: var(--gold);   animation: statusPulse .45s infinite; }
+    #face-status.speaking  { color: var(--gold); }
+    @keyframes statusPulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* ── Quick actions ── */
+    #quick-bar { display: flex; gap: 6px; padding: 7px 12px; overflow-x: auto;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; scrollbar-width: none; }
+    #quick-bar::-webkit-scrollbar { display: none; }
+    .qa-btn {
+      flex-shrink: 0;
+      padding: 5px 13px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      border-bottom: 2px solid transparent;
+      background: var(--bg);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color .2s, color .2s, box-shadow .2s, background .2s;
+    }
+    .qa-btn:hover, .qa-btn:active {
+      border-color: var(--accent-dim);
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,212,255,0.05);
+      box-shadow: 0 2px 10px rgba(0,212,255,0.1);
+    }
+
+    /* ── Messages ── */
+    #messages {
+      flex: 1; overflow-y: auto; padding: 14px 12px;
+      display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='32'%3E%3Cpath d='M14 0 L28 8 L28 24 L14 32 L0 24 L0 8 Z' fill='none' stroke='rgba(0%2C212%2C255%2C0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
+      background-size: 28px 32px;
+    }
+    .light #messages {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='32'%3E%3Cpath d='M14 0 L28 8 L28 24 L14 32 L0 24 L0 8 Z' fill='none' stroke='rgba(0%2C119%2C170%2C0.06)' stroke-width='0.5'/%3E%3C/svg%3E");
+    }
+    .msg { max-width: 86%; display: flex; flex-direction: column; gap: 3px; }
+    .msg.user  { align-self: flex-end; align-items: flex-end; }
+    .msg.atlas { align-self: flex-start; align-items: flex-start; }
+    .bubble { padding: 9px 13px; border-radius: var(--radius);
+      line-height: 1.55; word-break: break-word; }
+    .msg.user  .bubble {
+      background: var(--user-bubble);
+      border: 1px solid #1a3040;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.atlas .bubble {
+      background: var(--atlas-bubble);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent-dim);
+      border-bottom-left-radius: 4px;
+      box-shadow: -4px 0 16px rgba(0,212,255,0.12);
+    }
+    .msg-label {
+      font-size: 9px; color: var(--text-dim); padding: 0 4px;
+      font-family: var(--font-display); letter-spacing: 2px;
+    }
+    .msg-time {
+      font-size: 9px; color: var(--text-dim); padding: 0 6px;
+      font-family: var(--font-mono); opacity: 0.6;
+    }
+
+    /* ── Markdown inside bubbles ── */
+    .bubble h2,.bubble h3,.bubble h4 { margin: .6em 0 .3em; color: var(--accent); }
+    .bubble h2 { font-size: 1.1em; } .bubble h3 { font-size: 1em; }
+    .bubble h4 { font-size: .95em; }
+    .bubble p  { margin: .3em 0; }
+    .bubble ul,.bubble ol { padding-left: 1.4em; margin: .3em 0; }
+    .bubble li { margin: .15em 0; }
+    .bubble code { background: rgba(0,212,255,.08); border-radius: 4px;
+      padding: 1px 5px; font-family: var(--font-mono); font-size: .88em; color: var(--accent); }
+    .light .bubble code { background: rgba(0,0,0,.07); color: inherit; }
+    .bubble pre { background: rgba(0,0,0,.5); border-radius: 8px; padding: 10px 12px;
+      overflow-x: auto; margin: .4em 0; border: 1px solid var(--border); }
+    .light .bubble pre { background: rgba(0,0,0,.06); }
+    .bubble pre code { background: none; padding: 0; font-size: .85em; }
+    .bubble strong { font-weight: 600; }
+    .bubble em { font-style: italic; }
+    .bubble hr { border: none; border-top: 1px solid var(--border); margin: .5em 0; }
+
+    /* ── Typing indicator ── */
+    .typing .bubble { display: flex; gap: 5px; align-items: center; padding: 14px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-dim);
+      animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+
+    /* ── Input area ── */
+    #input-area { flex-shrink: 0; padding: 9px 12px calc(9px + var(--safe-bottom));
+      background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; gap: 8px; align-items: flex-end; }
+    #msg-input { flex: 1; resize: none; background: var(--input-bg);
+      border: 1px solid var(--border); border-radius: 12px;
+      color: var(--text); font-size: 15px; padding: 9px 12px;
+      max-height: 110px; outline: none; font-family: inherit;
+      line-height: 1.4; transition: border-color .2s, box-shadow .2s; }
+    #msg-input:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgba(0,212,255,0.08); }
+    #msg-input::placeholder { color: var(--text-dim); }
+    .icon-btn { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+      border: none; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 17px; transition: background .2s, transform .1s, box-shadow .2s; }
+    .icon-btn:active { transform: scale(.9); }
+    #mic-btn  { background: var(--border); color: var(--text); }
+    #mic-btn.recording { background: var(--danger); color: #fff; animation: pulse 1s infinite; }
+    #send-btn { background: var(--accent); color: #000; box-shadow: 0 0 12px rgba(0,212,255,0.3); }
+    #send-btn:hover { box-shadow: 0 0 20px rgba(0,212,255,0.5); }
+    #tts-btn  { background: var(--border); color: var(--text); }
+    #tts-btn.active { background: var(--accent-dim); color: #fff; }
+    @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,.5)} 50%{box-shadow:0 0 0 8px rgba(255,68,68,0)} }
+
+    /* ── Settings overlay ── */
+    #settings-overlay { display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.65); z-index: 200; align-items: flex-end; }
+    #settings-overlay.open { display: flex; }
+    #settings-panel { background: var(--surface); width: 100%;
+      border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + var(--safe-bottom));
+      max-height: 85dvh; overflow-y: auto; border-top: 1px solid var(--border); }
+    .settings-header { display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; }
+    .settings-header h2 { font-size: 13px; font-weight: 600; letter-spacing: 3px;
+      font-family: var(--font-display); color: var(--accent); }
+    #settings-close { background: none; border: none; font-size: 20px;
+      color: var(--text-dim); cursor: pointer; }
+    .setting-row { display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .setting-row label { flex: 1; font-size: 13px; color: var(--text-dim); }
+    .setting-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .setting-row input[type="text"] { flex: 1; background: var(--input-bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 6px 10px; font-size: 13px; outline: none; }
+    .setting-row input[type="checkbox"] { width: 18px; height: 18px;
+      accent-color: var(--accent); cursor: pointer; }
+    .setting-row select { background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 6px 10px;
+      font-size: 13px; outline: none; }
+    .setting-val { font-size: 11px; color: var(--text-dim); min-width: 30px; text-align: right;
+      font-family: var(--font-mono); }
+    #s-clear-btn { margin-top: 18px; width: 100%; padding: 12px;
+      border-radius: 10px; border: 1px solid var(--danger);
+      background: none; color: var(--danger); cursor: pointer; font-size: 13px; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #1a2030; color: #d0e8f0; padding: 8px 18px; border-radius: 20px;
+      font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .3s;
+      z-index: 300; border: 1px solid var(--border); font-family: var(--font-mono);
+      letter-spacing: 1px; }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>ATLAS</h1>
+    <div id="status-dot" title="Server connection"></div>
+    <button id="settings-btn" title="Settings">⚙</button>
+  </div>
+
+  <!-- JARVIS Animated Face -->
+  <div id="face-section">
+    <canvas id="face-canvas"></canvas>
+    <div id="face-status">STANDBY</div>
+  </div>
+
+  <div id="quick-bar">
+    <button class="qa-btn" data-cmd="briefing">📋 Briefing</button>
+    <button class="qa-btn" data-cmd="calendar">📅 Calendar</button>
+    <button class="qa-btn" data-cmd="notes list">📝 Notes</button>
+    <button class="qa-btn" data-cmd="insights">💡 Insights</button>
+    <button class="qa-btn" data-cmd="smart home">🏠 Home</button>
+    <button class="qa-btn" data-cmd="email">📧 Email</button>
+    <button class="qa-btn" data-cmd="diagnostics">🔧 Diagnostics</button>
+    <button class="qa-btn" data-cmd="help">❓ Help</button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div id="input-area">
+    <button id="mic-btn" class="icon-btn" title="Voice input">🎙</button>
+    <textarea id="msg-input" rows="1" placeholder="Message ATLAS…" autocomplete="off" spellcheck="true"></textarea>
+    <button id="tts-btn" class="icon-btn" title="Toggle voice reply">🔊</button>
+    <button id="send-btn" class="icon-btn" title="Send">➤</button>
+  </div>
+</div>
+
+<!-- Settings overlay -->
+<div id="settings-overlay">
+  <div id="settings-panel">
+    <div class="settings-header">
+      <h2>SETTINGS</h2>
+      <button id="settings-close">✕</button>
+    </div>
+
+    <div class="setting-row">
+      <label for="s-tts-enabled">Voice reply</label>
+      <input type="checkbox" id="s-tts-enabled" />
+    </div>
+    <div class="setting-row">
+      <label for="s-tts-rate">Speech rate</label>
+      <input type="range" id="s-tts-rate" min="0.5" max="2" step="0.1" />
+      <span class="setting-val" id="s-tts-rate-val">1.0×</span>
+    </div>
+    <div class="setting-row">
+      <label for="s-stt-lang">Recognition language</label>
+      <input type="text" id="s-stt-lang" placeholder="en-US" />
+    </div>
+    <div class="setting-row">
+      <label for="s-theme">Theme</label>
+      <select id="s-theme">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+    </div>
+
+    <button id="s-clear-btn">🗑 Clear chat history</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+// ── Apply theme before first paint ────────────────────────────────────────────
+(function () {
+  if (localStorage.getItem("atlas_theme") === "light")
+    document.body.classList.add("light");
+})();
+
+// ── Elements ──────────────────────────────────────────────────────────────────
+const msgList       = document.getElementById("messages");
+const input         = document.getElementById("msg-input");
+const sendBtn       = document.getElementById("send-btn");
+const micBtn        = document.getElementById("mic-btn");
+const ttsBtn        = document.getElementById("tts-btn");
+const statusDot     = document.getElementById("status-dot");
+const toast         = document.getElementById("toast");
+const settingsBtn   = document.getElementById("settings-btn");
+const settingsOvl   = document.getElementById("settings-overlay");
+const settingsClose = document.getElementById("settings-close");
+const faceCanvas    = document.getElementById("face-canvas");
+const faceStatusEl  = document.getElementById("face-status");
+const faceCtx       = faceCanvas.getContext("2d");
+
+// ── Settings state ─────────────────────────────────────────────────────────
+const cfg = {
+  get ttsEnabled() { return localStorage.getItem("atlas_tts") !== "0"; },
+  set ttsEnabled(v) { localStorage.setItem("atlas_tts", v ? "1" : "0"); },
+  get ttsRate() { return parseFloat(localStorage.getItem("atlas_tts_rate") || "1.0"); },
+  set ttsRate(v) { localStorage.setItem("atlas_tts_rate", String(v)); },
+  get sttLang() { return localStorage.getItem("atlas_stt_lang") || navigator.language || "en-US"; },
+  set sttLang(v) { localStorage.setItem("atlas_stt_lang", v); },
+  get theme() { return localStorage.getItem("atlas_theme") || "dark"; },
+  set theme(v) { localStorage.setItem("atlas_theme", v); },
+};
+
+// ── Settings panel ────────────────────────────────────────────────────────────
+const sTtsEnabled = document.getElementById("s-tts-enabled");
+const sTtsRate    = document.getElementById("s-tts-rate");
+const sTtsRateVal = document.getElementById("s-tts-rate-val");
+const sSttLang    = document.getElementById("s-stt-lang");
+const sTheme      = document.getElementById("s-theme");
+const sClearBtn   = document.getElementById("s-clear-btn");
+
+function loadSettingsUI() {
+  sTtsEnabled.checked = cfg.ttsEnabled;
+  sTtsRate.value      = cfg.ttsRate;
+  sTtsRateVal.textContent = cfg.ttsRate.toFixed(1) + "×";
+  sSttLang.value      = cfg.sttLang;
+  sTheme.value        = cfg.theme;
+}
+
+sTtsEnabled.addEventListener("change", () => { cfg.ttsEnabled = sTtsEnabled.checked; updateTtsBtn(); });
+sTtsRate.addEventListener("input", () => {
+  const v = parseFloat(sTtsRate.value);
+  cfg.ttsRate = v;
+  sTtsRateVal.textContent = v.toFixed(1) + "×";
+});
+sSttLang.addEventListener("change", () => { cfg.sttLang = sSttLang.value.trim() || "en-US"; });
+sTheme.addEventListener("change", () => {
+  cfg.theme = sTheme.value;
+  document.body.classList.toggle("light", sTheme.value === "light");
+});
+sClearBtn.addEventListener("click", () => {
+  if (!confirm("Clear all chat history?")) return;
+  localStorage.removeItem("atlas_history");
+  msgList.innerHTML = "";
+  appendAtlasMsg("Chat history cleared.");
+  settingsOvl.classList.remove("open");
+});
+
+settingsBtn.addEventListener("click", () => { loadSettingsUI(); settingsOvl.classList.add("open"); });
+settingsClose.addEventListener("click", () => settingsOvl.classList.remove("open"));
+settingsOvl.addEventListener("click", (e) => { if (e.target === settingsOvl) settingsOvl.classList.remove("open"); });
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastTimer;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toast.classList.remove("show"), 2800);
+}
+
+// ── JARVIS Face Renderer ───────────────────────────────────────────────────────
+const FACE = {
+  BLUE:     "#00d4ff",
+  BLUE_MID: "#0088bb",
+  BLUE_DIM: "#00334d",
+  GOLD:     "#ffd060",
+  GOLD_MID: "#cc8800",
+  GOLD_DIM: "#4d3000",
+};
+
+let _faceState = "idle"; // idle | listening | thinking | speaking
+let _facePhase = 0;
+let _faceAnimId = null;
+let _faceVisible = true;
+// logical canvas dimensions (CSS pixels)
+let _faceW = 340, _faceH = 190;
+
+function setFaceState(s) {
+  _faceState = s;
+  faceStatusEl.className = s === "idle" ? "" : s;
+  const labels = { idle: "STANDBY", listening: "LISTENING", thinking: "PROCESSING", speaking: "RESPONDING" };
+  faceStatusEl.textContent = labels[s] || "STANDBY";
+}
+
+// ── Debounce helper ───────────────────────────────────────────────────────────
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function resizeFaceCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  _faceW = faceCanvas.offsetWidth  || 340;
+  _faceH = faceCanvas.offsetHeight || 190;
+  faceCanvas.width  = _faceW * dpr;
+  faceCanvas.height = _faceH * dpr;
+  faceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// Drawing helpers
+function _glow(ctx, color, blur) {
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = blur;
+  ctx.strokeStyle = color;
+}
+function _line(ctx, x1, y1, x2, y2) {
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+}
+function _arc(ctx, cx, cy, r, a1, a2, ccw) {
+  ctx.beginPath(); ctx.arc(cx, cy, r, a1, a2, ccw); ctx.stroke();
+}
+function _hex(ctx, cx, cy, r, rot) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i + rot;
+    const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath(); ctx.stroke();
+}
+
+function drawFace(phase, state) {
+  const W = _faceW, H = _faceH;
+  const ctx = faceCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  // subtle radial gradient background behind face
+  const bgGrad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, H * 0.65);
+  bgGrad.addColorStop(0, "rgba(0,40,60,0.35)");
+  bgGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W / 2;
+  const cy = H * 0.50;
+  const R  = Math.min(W * 0.40, H * 0.43);
+
+  const spd  = state === "speaking" ? 4 : state === "listening" ? 2.2 : 1;
+  const pulse  = 0.5 + 0.5 * Math.sin(phase * spd);
+  const pulse2 = 0.5 + 0.5 * Math.sin(phase * spd + Math.PI * 0.7);
+
+  // ── OUTER HEX FRAME ──────────────────────────────────────────────────────
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.30 + 0.15 * pulse;
+  _glow(ctx, FACE.BLUE, 6);
+  _hex(ctx, cx, cy, R * 1.20, Math.PI / 6);
+
+  ctx.globalAlpha = 0.10 + 0.06 * pulse2;
+  ctx.lineWidth = 0.5;
+  _hex(ctx, cx, cy, R * 1.32, Math.PI / 6);
+  ctx.globalAlpha = 1;
+
+  // rotating diagnostic arcs (active states)
+  if (state !== "idle") {
+    const rot = phase * (state === "speaking" ? 1.8 : 1.2);
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.55 + 0.25 * pulse;
+    _glow(ctx, state === "speaking" ? FACE.GOLD : FACE.BLUE, 12);
+    _arc(ctx, cx, cy, R * 1.14, rot, rot + Math.PI * 0.45);
+    _arc(ctx, cx, cy, R * 1.14, rot + Math.PI, rot + Math.PI * 1.45);
+    ctx.lineWidth = 0.75;
+    ctx.globalAlpha = 0.3;
+    _arc(ctx, cx, cy, R * 1.08, -rot * 0.8, -rot * 0.8 + Math.PI * 0.3);
+    _arc(ctx, cx, cy, R * 1.08, -rot * 0.8 + Math.PI, -rot * 0.8 + Math.PI * 1.3);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── KEY FACE GEOMETRY POINTS ──────────────────────────────────────────────
+  const crownY = cy - R * 0.80;
+  const tLX    = cx - R * 0.62,  tLY = cy - R * 0.62; // left temple
+  const tRX    = cx + R * 0.62,  tRY = cy - R * 0.62; // right temple
+  const chLX   = cx - R * 0.80,  chY = cy + R * 0.08; // left cheek
+  const chRX   = cx + R * 0.80;                        // right cheek
+  const jLX    = cx - R * 0.50,  jY  = cy + R * 0.50; // left jaw
+  const jRX    = cx + R * 0.50;                        // right jaw
+  const chinY  = cy + R * 0.68;
+
+  // ── SKULL / CROWN ARC ────────────────────────────────────────────────────
+  ctx.lineWidth = 1.5;
+  _glow(ctx, FACE.BLUE, 14);
+  ctx.beginPath();
+  ctx.moveTo(tLX, tLY);
+  ctx.quadraticCurveTo(cx - R * 0.12, crownY - R * 0.04, cx, crownY);
+  ctx.quadraticCurveTo(cx + R * 0.12, crownY - R * 0.04, tRX, tRY);
+  ctx.stroke();
+
+  // crown center tick
+  ctx.lineWidth = 1;
+  _line(ctx, cx, crownY - R * 0.04, cx, crownY - R * 0.14);
+
+  // forehead arc
+  ctx.lineWidth = 1;
+  _glow(ctx, FACE.BLUE_MID, 6);
+  _arc(ctx, cx, cy - R * 0.60, R * 0.13, Math.PI, 0);
+  // flanking forehead ticks
+  _line(ctx, cx - R * 0.33, cy - R * 0.69, cx - R * 0.18, cy - R * 0.69);
+  _line(ctx, cx + R * 0.18, cy - R * 0.69, cx + R * 0.33, cy - R * 0.69);
+
+  // ── TEMPLE HORIZONTAL BARS (gold accent) ─────────────────────────────────
+  ctx.lineWidth = 1.5;
+  _glow(ctx, FACE.GOLD, 10);
+  _line(ctx, cx - R * 0.78, tLY,       cx - R * 0.58, tLY);
+  _line(ctx, cx + R * 0.58, tRY,       cx + R * 0.78, tRY);
+  // small vertical ticks at bar ends
+  ctx.lineWidth = 1;
+  _line(ctx, cx - R * 0.78, tLY - R * 0.04, cx - R * 0.78, tLY + R * 0.04);
+  _line(ctx, cx + R * 0.78, tRY - R * 0.04, cx + R * 0.78, tRY + R * 0.04);
+
+  // ── SIDES: temple → cheek → jaw ──────────────────────────────────────────
+  ctx.lineWidth = 1.5;
+  _glow(ctx, FACE.BLUE, 10);
+  ctx.beginPath();
+  ctx.moveTo(tLX, tLY);
+  ctx.lineTo(chLX, chY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(tRX, tRY);
+  ctx.lineTo(chRX, chY);
+  ctx.stroke();
+
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(chLX, chY);
+  ctx.lineTo(jLX, jY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(chRX, chY);
+  ctx.lineTo(jRX, jY);
+  ctx.stroke();
+
+  // ── JAW (gold) ───────────────────────────────────────────────────────────
+  ctx.lineWidth = 1.5;
+  _glow(ctx, FACE.GOLD, 14);
+  ctx.beginPath();
+  ctx.moveTo(jLX, jY);
+  ctx.lineTo(jLX + R * 0.04, chinY - R * 0.06);
+  ctx.lineTo(cx,              chinY);
+  ctx.lineTo(jRX - R * 0.04, chinY - R * 0.06);
+  ctx.lineTo(jRX, jY);
+  ctx.stroke();
+
+  // chin horizontal detail
+  ctx.lineWidth = 1;
+  _glow(ctx, FACE.GOLD_MID, 6);
+  _line(ctx, cx - R * 0.20, chinY - R * 0.05, cx + R * 0.20, chinY - R * 0.05);
+
+  // ── CHEEK PANEL TICK LINES ────────────────────────────────────────────────
+  ctx.lineWidth = 0.75;
+  ctx.globalAlpha = 0.45;
+  _glow(ctx, FACE.BLUE_MID, 4);
+  for (let i = 1; i <= 3; i++) {
+    const t = i / 4;
+    const lx = chLX + (jLX - chLX) * t,  ly = chY + (jY - chY) * t;
+    const rx = chRX + (jRX - chRX) * t;
+    _line(ctx, lx, ly, lx + R * 0.18, ly - R * 0.02);
+    _line(ctx, rx, ly, rx - R * 0.18, ly - R * 0.02);
+  }
+  ctx.globalAlpha = 1;
+
+  // ── BROW RIDGE ────────────────────────────────────────────────────────────
+  const eyeY  = cy - R * 0.20;
+  const browY = eyeY - R * 0.15;
+  ctx.lineWidth = 1.2;
+  _glow(ctx, FACE.BLUE, 8);
+  _line(ctx, cx - R * 0.60, browY - R * 0.02, cx - R * 0.12, browY + R * 0.01);
+  _line(ctx, cx + R * 0.12, browY + R * 0.01, cx + R * 0.60, browY - R * 0.02);
+  // brow inner ticks
+  ctx.lineWidth = 0.75;
+  ctx.globalAlpha = 0.5;
+  _line(ctx, cx - R * 0.45, browY - R * 0.01, cx - R * 0.45, browY - R * 0.07);
+  _line(ctx, cx + R * 0.45, browY - R * 0.01, cx + R * 0.45, browY - R * 0.07);
+  ctx.globalAlpha = 1;
+
+  // ── EYES ──────────────────────────────────────────────────────────────────
+  const eyeColor = state === "speaking" ? FACE.GOLD : FACE.BLUE;
+  const eyeBlur  = state === "speaking" ? 20 : 15;
+  const eyeAlpha = state === "idle" ? (0.70 + 0.30 * pulse) : 1.0;
+  const eyeLX = cx - R * 0.38, eyeRX = cx + R * 0.38;
+  const eyeW  = R * 0.28, eyeH = R * 0.09;
+
+  ctx.globalAlpha = eyeAlpha;
+  ctx.lineWidth   = 1.5;
+  _glow(ctx, eyeColor, eyeBlur);
+
+  function drawEye(ex, ey, ew, eh) {
+    // outer hex aperture
+    ctx.beginPath();
+    ctx.moveTo(ex - ew * 0.6, ey - eh);
+    ctx.lineTo(ex + ew * 0.6, ey - eh);
+    ctx.lineTo(ex + ew,       ey);
+    ctx.lineTo(ex + ew * 0.6, ey + eh);
+    ctx.lineTo(ex - ew * 0.6, ey + eh);
+    ctx.lineTo(ex - ew,       ey);
+    ctx.closePath();
+    ctx.stroke();
+
+    // inner horizontal scan lines
+    ctx.lineWidth = 0.75;
+    const scanLines = 3;
+    for (let i = 0; i < scanLines; i++) {
+      const ly = ey - eh * 0.5 + (eh * i) / (scanLines - 1);
+      ctx.globalAlpha = eyeAlpha * (i === 1 ? 0.85 : 0.35);
+      _line(ctx, ex - ew * 0.72, ly, ex + ew * 0.72, ly);
+    }
+    ctx.globalAlpha = eyeAlpha;
+    ctx.lineWidth = 1.5;
+
+    // pupil diamond
+    const pR = eh * 0.52;
+    ctx.beginPath();
+    ctx.moveTo(ex,        ey - pR);
+    ctx.lineTo(ex + pR * 1.4, ey);
+    ctx.lineTo(ex,        ey + pR);
+    ctx.lineTo(ex - pR * 1.4, ey);
+    ctx.closePath();
+    ctx.stroke();
+
+    // pupil centre bright dot
+    ctx.globalAlpha = eyeAlpha * 0.9;
+    ctx.fillStyle = eyeColor;
+    ctx.shadowColor = eyeColor; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(ex, ey, pR * 0.28, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  drawEye(eyeLX, eyeY, eyeW, eyeH);
+  drawEye(eyeRX, eyeY, eyeW, eyeH);
+  ctx.globalAlpha = 1;
+
+  // ── NOSE BRIDGE (minimal) ─────────────────────────────────────────────────
+  ctx.lineWidth = 1;
+  _glow(ctx, FACE.BLUE_MID, 5);
+  const noseTopY = eyeY + R * 0.06, noseBotY = cy + R * 0.10;
+  _line(ctx, cx - R * 0.07, noseTopY, cx - R * 0.07, noseBotY);
+  _line(ctx, cx + R * 0.07, noseTopY, cx + R * 0.07, noseBotY);
+  _line(ctx, cx - R * 0.12, noseBotY, cx + R * 0.12, noseBotY);
+
+  // ── MOUTH ─────────────────────────────────────────────────────────────────
+  const mouthCY = cy + R * 0.35;
+  const mouthW  = R * 0.30;
+  let   mouthH;
+  if (state === "speaking") {
+    mouthH = R * 0.038 + R * 0.030 * Math.abs(Math.sin(phase * 6.8));
+  } else {
+    mouthH = R * 0.024;
+  }
+  const mColor = state === "speaking" ? FACE.GOLD : FACE.BLUE;
+  const mBlur  = state === "speaking" ? 14 : 6;
+  ctx.lineWidth = 1.5;
+  _glow(ctx, mColor, mBlur);
+  ctx.strokeRect(cx - mouthW, mouthCY - mouthH, mouthW * 2, mouthH * 2);
+  ctx.lineWidth = 0.75;
+  ctx.globalAlpha = 0.6;
+  [-0.55, -0.18, 0.18, 0.55].forEach(t => {
+    _line(ctx, cx + t * mouthW, mouthCY - mouthH, cx + t * mouthW, mouthCY + mouthH);
+  });
+  ctx.globalAlpha = 1;
+
+  // ── NECK CONNECTOR ────────────────────────────────────────────────────────
+  ctx.lineWidth = 1;
+  _glow(ctx, FACE.BLUE_MID, 5);
+  ctx.globalAlpha = 0.5;
+  _line(ctx, cx - R * 0.12, chinY, cx - R * 0.12, chinY + R * 0.16);
+  _line(ctx, cx + R * 0.12, chinY, cx + R * 0.12, chinY + R * 0.16);
+  _line(ctx, cx - R * 0.12, chinY + R * 0.16, cx + R * 0.12, chinY + R * 0.16);
+  ctx.globalAlpha = 1;
+
+  // ── SCAN LINE ─────────────────────────────────────────────────────────────
+  const scanSpd = state === "listening" ? 1.8 : state === "speaking" ? 2.5 : 0.5;
+  const scanFrac = ((phase * scanSpd * 0.15) % 1 + 1) % 1;
+  const scanY = (cy - R * 0.82) + scanFrac * R * 1.64;
+  ctx.lineWidth = 0.6;
+  ctx.globalAlpha = 0.28 + 0.12 * pulse;
+  _glow(ctx, FACE.BLUE, 8);
+  _line(ctx, cx - R * 0.90, scanY, cx + R * 0.90, scanY);
+  ctx.globalAlpha = 1;
+
+  // ── THINKING SPINNERS ─────────────────────────────────────────────────────
+  if (state === "thinking") {
+    const sp = R * 0.54;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.75 + 0.25 * pulse;
+    _glow(ctx, FACE.GOLD, 16);
+    _arc(ctx, cx, cy, sp,        phase * 2.8,       phase * 2.8 + Math.PI * 0.55);
+    _arc(ctx, cx, cy, sp,        phase * 2.8 + Math.PI, phase * 2.8 + Math.PI * 1.55);
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.45;
+    _glow(ctx, FACE.BLUE, 10);
+    _arc(ctx, cx, cy, sp * 1.17, -phase * 1.9,      -phase * 1.9 + Math.PI * 0.38, false);
+    _arc(ctx, cx, cy, sp * 1.17, -phase * 1.9 + Math.PI, -phase * 1.9 + Math.PI * 1.38, false);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── LISTENING PULSE RING ──────────────────────────────────────────────────
+  if (state === "listening") {
+    const rp = (phase * 1.6) % 1;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = (1 - rp) * 0.55;
+    _glow(ctx, FACE.BLUE, 18);
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * (0.98 + rp * 0.42), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // ── SPEAKING PULSE RING ───────────────────────────────────────────────────
+  if (state === "speaking") {
+    const rp = (phase * 2.2) % 1;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = (1 - rp) * 0.45;
+    _glow(ctx, FACE.GOLD, 18);
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * (0.98 + rp * 0.52), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function _animateFace() {
+  if (!_faceVisible) { _faceAnimId = null; return; }
+  _facePhase += 0.012;
+  drawFace(_facePhase, _faceState);
+  _faceAnimId = requestAnimationFrame(_animateFace);
+}
+
+// ── Pause/resume animation when tab is hidden ─────────────────────────────────
+document.addEventListener("visibilitychange", () => {
+  _faceVisible = document.visibilityState === "visible";
+  if (_faceVisible && !_faceAnimId) _animateFace();
+});
+
+window.addEventListener("resize", debounce(() => {
+  resizeFaceCanvas();
+  drawFace(_facePhase, _faceState);
+}, 150));
+
+resizeFaceCanvas();
+_animateFace();
+
+// ── TTS (Web Speech Synthesis) ────────────────────────────────────────────────
+function speak(text) {
+  if (!cfg.ttsEnabled || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt   = new SpeechSynthesisUtterance(text);
+  utt.rate    = cfg.ttsRate;
+  utt.pitch   = 0.9;
+  utt.onstart = () => setFaceState("speaking");
+  utt.onend   = () => setFaceState("idle");
+  utt.onerror = () => setFaceState("idle");
+  window.speechSynthesis.speak(utt);
+}
+
+// Cancel TTS if page is unloaded
+window.addEventListener("beforeunload", () => {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+});
+
+function updateTtsBtn() {
+  ttsBtn.classList.toggle("active", cfg.ttsEnabled);
+  ttsBtn.title = cfg.ttsEnabled ? "Voice reply ON" : "Voice reply OFF";
+}
+updateTtsBtn();
+
+ttsBtn.addEventListener("click", () => {
+  cfg.ttsEnabled = !cfg.ttsEnabled;
+  updateTtsBtn();
+  showToast(cfg.ttsEnabled ? "Voice reply enabled" : "Voice reply disabled");
+});
+
+// ── Voice input (Web Speech API) ──────────────────────────────────────────────
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+const STT_ERRORS = {
+  "not-allowed":            "Microphone access denied. Allow it in browser site settings.",
+  "network":                "Network error — Google Speech needs internet.",
+  "no-speech":              "No speech detected. Try speaking louder.",
+  "audio-capture":          "Microphone not found.",
+  "service-not-allowed":    "Speech service blocked. Try reloading.",
+  "bad-grammar":            "Unrecognised speech grammar.",
+  "language-not-supported": "Language not supported.",
+  "aborted":                "Recognition aborted.",
+};
+
+let _finalSent = false;
+const recState = { rec: null, recording: false };
+
+if (SpeechRecognition) {
+  const rec = new SpeechRecognition();
+  rec.interimResults  = true;
+  rec.maxAlternatives = 1;
+  rec.continuous      = false;
+
+  rec.onresult = (e) => {
+    let interimText = "", finalText = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t; else interimText += t;
+    }
+    if (finalText.trim()) {
+      input.value = finalText.trim();
+      input.style.fontStyle = ""; input.style.color = "";
+      autoResize();
+      _finalSent = true;
+      stopRecording();
+      sendMessage(finalText.trim());
+    } else if (interimText) {
+      input.value = interimText;
+      input.style.fontStyle = "italic";
+      input.style.color = "var(--text-dim)";
+      autoResize();
+    }
+  };
+  rec.onerror = (e) => {
+    showToast(STT_ERRORS[e.error] || "Speech error: " + e.error);
+    stopRecording();
+  };
+  rec.onend = () => {
+    if (!_finalSent && input.value.trim()) {
+      input.style.fontStyle = ""; input.style.color = "";
+    } else if (!_finalSent) {
+      input.value = ""; input.style.fontStyle = ""; input.style.color = ""; autoResize();
+    }
+    stopRecording();
+  };
+  recState.rec = rec;
+} else {
+  micBtn.style.display = "none";
+}
+
+function startRecording() {
+  if (!recState.rec || recState.recording) return;
+  _finalSent = false;
+  input.style.fontStyle = ""; input.style.color = "";
+  recState.rec.lang = cfg.sttLang;
+  recState.rec.start();
+  recState.recording = true;
+  micBtn.classList.add("recording");
+  micBtn.title = "Listening… tap to stop";
+  input.placeholder = "Listening…";
+  setFaceState("listening");
+}
+
+function stopRecording() {
+  if (!recState.recording) return;
+  recState.recording = false;
+  micBtn.classList.remove("recording");
+  micBtn.title = "Voice input";
+  input.placeholder = "Message ATLAS…";
+  input.style.fontStyle = ""; input.style.color = "";
+  if (_faceState === "listening") setFaceState("idle");
+  try { recState.rec && recState.rec.stop(); } catch (_) {}
+}
+
+micBtn.addEventListener("click", () => { if (recState.recording) stopRecording(); else startRecording(); });
+
+// ── Server status ─────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch("/health", { cache: "no-store" });
+    statusDot.className = r.ok ? "online" : "error";
+  } catch { statusDot.className = "error"; }
+}
+checkHealth();
+setInterval(checkHealth, 30_000);
+
+// ── Chat history persistence ──────────────────────────────────────────────────
+const MAX_HISTORY = 60;
+let chatHistory = [];
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem("atlas_history");
+    if (raw) chatHistory = JSON.parse(raw);
+  } catch { chatHistory = []; }
+}
+
+function saveHistory() {
+  if (chatHistory.length > MAX_HISTORY) chatHistory = chatHistory.slice(-MAX_HISTORY);
+  try { localStorage.setItem("atlas_history", JSON.stringify(chatHistory)); } catch (_) {}
+}
+
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+function renderMarkdown(raw) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const blocks = [];
+  let s = raw.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const ph = `\x00B${blocks.length}\x00`;
+    blocks.push(`<pre><code>${esc(code.trimEnd())}</code></pre>`);
+    return ph;
+  });
+  s = s.replace(/`([^`\n]+)`/g, (_, c) => `<code>${esc(c)}</code>`);
+  const inline = (t) => t
+    .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, "<em>$1</em>");
+  const lines = s.split("\n");
+  const out = [];
+  let listType = null;
+  const closeList = () => { if (listType) { out.push(`</${listType}>`); listType = null; } };
+  for (const line of lines) {
+    if (/^\x00B\d+\x00$/.test(line.trim())) { closeList(); out.push(line.trim()); continue; }
+    const hm = line.match(/^(#{1,4}) (.+)/);
+    if (hm) { closeList(); const lvl = Math.min(hm[1].length + 1, 5); out.push(`<h${lvl}>${inline(esc(hm[2]))}</h${lvl}>`); continue; }
+    if (/^---+$/.test(line.trim())) { closeList(); out.push("<hr>"); continue; }
+    const ulm = line.match(/^[*\-] (.+)/);
+    if (ulm) { if (listType !== "ul") { closeList(); out.push("<ul>"); listType = "ul"; } out.push(`<li>${inline(esc(ulm[1]))}</li>`); continue; }
+    const olm = line.match(/^\d+\. (.+)/);
+    if (olm) { if (listType !== "ol") { closeList(); out.push("<ol>"); listType = "ol"; } out.push(`<li>${inline(esc(olm[1]))}</li>`); continue; }
+    if (!line.trim()) { closeList(); out.push("<br>"); continue; }
+    closeList();
+    out.push(`<p>${inline(esc(line))}</p>`);
+  }
+  closeList();
+  let result = out.join("");
+  blocks.forEach((b, i) => { result = result.split(`\x00B${i}\x00`).join(b); });
+  return result;
+}
+
+// ── Timestamp helper ──────────────────────────────────────────────────────────
+function _fmtTime() {
+  const d = new Date();
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// ── Message rendering ─────────────────────────────────────────────────────────
+function _createMsgEl(role, htmlContent) {
+  const div    = document.createElement("div");
+  div.className = "msg " + role;
+  const label  = document.createElement("div");
+  label.className = "msg-label";
+  label.textContent = role === "user" ? "YOU" : "ATLAS";
+  const timeEl = document.createElement("div");
+  timeEl.className = "msg-time";
+  timeEl.textContent = _fmtTime();
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  if (role === "atlas") bubble.innerHTML = htmlContent;
+  else bubble.textContent = htmlContent;
+  const meta = document.createElement("div");
+  meta.style.cssText = "display:flex;gap:6px;align-items:center;";
+  meta.appendChild(label);
+  meta.appendChild(timeEl);
+  div.appendChild(meta);
+  div.appendChild(bubble);
+  return div;
+}
+
+function appendMsg(role, text) {
+  const html = role === "atlas" ? renderMarkdown(text) : text;
+  const el = _createMsgEl(role, html);
+  msgList.appendChild(el);
+  msgList.scrollTop = msgList.scrollHeight;
+  return el;
+}
+
+// Alias used by sClearBtn handler
+function appendAtlasMsg(text) { appendMsg("atlas", text); }
+
+function appendStreamingMsg() {
+  const el = _createMsgEl("atlas", "");
+  msgList.appendChild(el);
+  msgList.scrollTop = msgList.scrollHeight;
+  return el.querySelector(".bubble");
+}
+
+function showTyping() {
+  const div = document.createElement("div");
+  div.className = "msg atlas typing"; div.id = "_typing";
+  div.innerHTML = `<div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  msgList.appendChild(div);
+  msgList.scrollTop = msgList.scrollHeight;
+}
+function removeTyping() { const t = document.getElementById("_typing"); if (t) t.remove(); }
+
+// ── Send message (streaming) ──────────────────────────────────────────────────
+let _sending = false;
+
+async function sendMessage(text) {
+  if (_sending) return;
+  const trimmed = (text !== undefined ? text : input.value).trim();
+  if (!trimmed) return;
+  _sending = true;
+  input.value = ""; autoResize();
+
+  appendMsg("user", trimmed);
+  chatHistory.push({ role: "user", text: trimmed });
+
+  setFaceState("thinking");
+  showTyping();
+
+  try {
+    const resp = await fetch("/chat/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: trimmed, speak: false }),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    removeTyping();
+    setFaceState("idle");
+
+    const bubble = appendStreamingMsg();
+    let fullText = "";
+    let buffer   = "";
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+
+    outer: while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        // flush any remaining buffer content
+        if (buffer.trim().startsWith("data: ")) {
+          try {
+            const data = JSON.parse(buffer.trim().slice(6));
+            if (data.token) { fullText += data.token; }
+          } catch (_) {}
+        }
+        break outer;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      // keep last (potentially incomplete) line in buffer
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.token) {
+            fullText += data.token;
+            bubble.innerHTML = renderMarkdown(fullText);
+            msgList.scrollTop = msgList.scrollHeight;
+          }
+        } catch (_) {}
+      }
+    }
+
+    bubble.innerHTML = renderMarkdown(fullText);
+    msgList.scrollTop = msgList.scrollHeight;
+    chatHistory.push({ role: "atlas", text: fullText });
+    saveHistory();
+    speak(fullText);
+    if (!cfg.ttsEnabled) setFaceState("idle");
+
+  } catch (err) {
+    removeTyping();
+    setFaceState("idle");
+    const msg = "Connection error — is the ATLAS server running?";
+    appendMsg("atlas", msg);
+    chatHistory.push({ role: "atlas", text: msg });
+    saveHistory();
+  } finally {
+    _sending = false;
+  }
+}
+
+// ── Input helpers ─────────────────────────────────────────────────────────────
+function autoResize() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 110) + "px";
+}
+input.addEventListener("input", autoResize);
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+sendBtn.addEventListener("click", () => sendMessage());
+
+// ── Quick actions ─────────────────────────────────────────────────────────────
+document.querySelectorAll(".qa-btn").forEach((btn) => {
+  btn.addEventListener("click", () => sendMessage(btn.dataset.cmd));
+});
+
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/static/sw.js").catch(() => {});
+}
+
+// ── Init: restore history then show welcome ───────────────────────────────────
+loadHistory();
+
+if (chatHistory.length > 0) {
+  chatHistory.forEach(({ role, text }) => appendMsg(role, text));
+} else {
+  const welcome = "Hello. I'm ATLAS. How can I assist you today?\nTry \"briefing\", \"plan my day\", or tap a quick action above.";
+  appendMsg("atlas", welcome);
+  chatHistory.push({ role: "atlas", text: welcome });
+  saveHistory();
+}
+
+msgList.scrollTop = msgList.scrollHeight;
+</script>
+</body>
+</html>

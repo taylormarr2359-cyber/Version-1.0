@@ -98,6 +98,60 @@ Validated in this environment:
   - malformed JSON => `400`
   - invalid endpoint => `404`
 
+## Remote Access (Outside Home)
+
+ATLAS uses **Tailscale** to give you secure access from anywhere — your phone on mobile data, a laptop at a coffee shop, anywhere.
+
+### One-time setup
+
+**On the PC running ATLAS:**
+```bash
+# Install Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+
+# Authenticate (opens browser)
+sudo tailscale up
+
+# Check your Tailscale IP (e.g. 100.x.y.z)
+tailscale ip -4
+```
+
+**On your Android phone:**
+1. Install **Tailscale** from the Google Play Store
+2. Sign in with the same account used above
+3. Enable the VPN in the Tailscale app
+
+**Start ATLAS API server (already binds to all interfaces):**
+```bash
+python -m projrvt.serve
+```
+
+**Access ATLAS from your phone:**
+```
+http://<tailscale-ip>:8000
+```
+Replace `<tailscale-ip>` with the IP shown by `tailscale ip -4` (e.g. `http://100.64.1.5:8000`).
+
+To install as an Android home screen app: open the URL in Chrome → tap the three-dot menu → **"Add to Home Screen"**.
+
+### Why Tailscale
+
+- **Free** for personal use (up to 3 users, 100 devices)
+- **End-to-end encrypted** — traffic never passes through a cloud server unencrypted
+- **No router/firewall changes** needed (works behind NAT)
+- **Always-on** — the Tailscale IP never changes, no DNS needed
+
+### Optional: lock down the API
+
+Set a bearer token so only your phone can talk to ATLAS:
+```bash
+export ATLAS_API_AUTH_KEY=your-secret-token
+python -m projrvt.serve
+```
+Then add `Authorization: Bearer your-secret-token` to requests, or add it in `static/index.html`'s `fetch` calls.
+
+---
+
 ## Security Note
 
 Do not commit API keys to git. Prefer environment variables for secrets.

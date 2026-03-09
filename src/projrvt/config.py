@@ -73,6 +73,23 @@ def get_voice_timeout_sec() -> float:
     return max(1.0, min(30.0, value))
 
 
+def get_api_host() -> str:
+    return (os.getenv("ATLAS_API_HOST", "0.0.0.0") or "0.0.0.0").strip()
+
+
+def get_api_port() -> int:
+    raw = (os.getenv("ATLAS_API_PORT", "8000") or "8000").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 8000
+    return max(1, min(65535, value))
+
+
+def get_api_auth_key() -> str:
+    return (os.getenv("ATLAS_API_AUTH_KEY", "") or "").strip()
+
+
 def build_system_prompt() -> str:
     return (
         "You are ATLAS, a proactive, insightful personal assistant. "

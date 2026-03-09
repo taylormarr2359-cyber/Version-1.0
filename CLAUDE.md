@@ -227,58 +227,74 @@ The provider validates that `base_url` is not a placeholder (rejects `example.co
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`master` and all PRs:
+GitHub Actions (`.github/workflows/ci.yml`) runs automatically on:
+- Push to `main` or `master`
+- Pull requests targeting those branches
 
-1. Checkout code
-2. Set up Python (matrix: 3.10, 3.11, 3.12)
-3. `pip install -r requirements.txt && pip install -e .`
-4. `pytest -q`
+The pipeline:
+1. Checks out code
+2. Sets up Python 3.10, 3.11, 3.12 (matrix)
+3. Installs dependencies (`pip install -e . && pip install -r requirements.txt`)
+4. Runs `pytest -q`
 
-All matrix versions must pass. Do not merge if CI is red.
-
----
-
-## Adding New Features — Checklist
-
-- [ ] Implement in the appropriate module (see layout above).
-- [ ] Register new commands in `assistant.py` `handle()`.
-- [ ] Add/update integration data file and `observability.py` if storage is involved.
-- [ ] Write pytest tests in `tests/` (target: keep 100% of existing tests green, add new ones).
-- [ ] Run `pre-commit run --all-files` and fix any issues.
-- [ ] Update `README.md` command list if a user-facing command was added.
-- [ ] Ensure no secrets appear in code, tests, or committed files.
+All tests must pass on all three Python versions before merging.
 
 ---
 
-## Security Guidelines
+## Adding New Features
 
-- Never commit API keys, tokens, or credentials. Use `.env` (gitignored) or Azure Key Vault.
-- Wrap any output that may contain user-provided strings in `security.redact_secrets()`.
-- Do not log raw LLM responses without redaction.
-- Validate external URLs — reject placeholders like `example.com`.
-- Refer to `SECRET_MANAGEMENT.md` for production secret-handling guidance.
-
----
-
-## Persistent Data
-
-Runtime data lives in `atlas_data/` (JSON files). These are **not** committed (they are runtime state). When working locally you may need to seed them:
-
-```bash
-echo '[]' > atlas_data/calendar.json
-echo '[]' > atlas_data/notes.json
-echo '[]' > atlas_data/email_outbox.json
-echo '{"lights": "off", "thermostat": 70, "locks": "locked"}' > atlas_data/smart_home.json
-```
+1. **Configuration first**: Add any new env vars to `config.py` with sensible defaults and clamping if numeric.
+2. **Module boundary**: Place logic in the appropriate existing module. Create a new module only if the feature is genuinely orthogonal to all existing modules.
+3. **Integration result**: New integration actions must return `IntegrationResult`.
+4. **Tests required**: Add tests in `tests/test_<feature>.py` covering the happy path and at least one failure/edge case.
+5. **No secrets in code**: Load API keys exclusively via `os.environ.get(...)` in `config.py`.
+6. **Format before commit**: Run `black`, `isort`, and `flake8` before every commit.
+7. **Update TODO.md**: If completing a roadmap item or identifying a new one, update `TODO.md`.
 
 ---
 
-## Pending Work (TODO.md)
+## Common Commands Reference
 
-Phase 5 (packaging/deployment) is not yet complete:
+| Task | Command |
+|---|---|
+| Run assistant (CLI) | `python -m projrvt.main` |
+| Run API server | `python -m projrvt.serve` |
+| Run all tests | `pytest -q` |
+| Run specific test | `pytest tests/test_security.py -v` |
+| Format code | `black src/ tests/ && isort src/ tests/` |
+| Lint | `flake8 src/ tests/` |
+| All pre-commit checks | `pre-commit run --all-files` |
+| Install (editable, CLI only) | `pip install -e .` |
+| Install (editable, with API) | `pip install -e ".[api]"` |
 
-- Launcher scripts (`atlas.sh`, `atlas.bat`)
-- Systemd/launchd startup helpers
-- Docker packaging
+---
 
-Do not assume these exist when writing new tooling.
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `OPENAI_API_KEY` / `ATLAS_API_KEY` | — | LLM API key (required for live replies) |
+| `ATLAS_TTS_PROVIDER` | `local` | `local` or `cloud` |
+| `ATLAS_TTS_VOICE` | auto | Voice name or keyword for selection |
+| `ATLAS_TTS_RATE` | `150` | Speech rate (clamped 110–210) |
+| `ATLAS_TTS_VOLUME` | `1.0` | Volume (clamped 0.0–1.0) |
+| `ATLAS_TTS_STYLE` | `calm_authoritative` | Voice style descriptor |
+| `ATLAS_WAKE_WORD` | `atlas` | Prefix keyword to trigger the assistant |
+| `ATLAS_VOICE_INTERRUPTIBLE` | `true` | Allow speech interruption |
+| `ATLAS_VOICE_TIMEOUT_SEC` | `10.0` | Voice synthesis timeout (clamped 1.0–30.0) |
+| `ATLAS_API_HOST` | `0.0.0.0` | API server bind address |
+| `ATLAS_API_PORT` | `8000` | API server port (clamped 1–65535) |
+| `ATLAS_API_AUTH_KEY` | `""` | Bearer token required on all API endpoints; empty = auth disabled |
+
+---
+
+## Known Patterns & Pitfalls
+
+- **Fallback mode**: When no API key is set, `engine.py` returns a static fallback string rather than raising. Tests exploit this to avoid mocking HTTP.
+- **Voice on CI**: `pyttsx3` may fail silently on headless CI environments. `VoiceEngine` is instantiated but voice output is skipped in test assertions.
+- **JSON edge cases**: The `tests/` directory contains `.json` fixture files simulating malformed API responses, large payloads, missing fields, and timeouts. Consult these before writing new provider tests.
+- **Memory window**: `ConversationMemory` holds 20 items by default. `relevant()` uses token-based scoring — avoid changing the window size without updating `test_phase2_5.py`.
+- **Timestamp format**: Always append `"Z"` to ISO timestamps in `atlas_data/` files — the briefing parser expects UTC-suffixed strings.
+- **API singleton state**: `api.py` holds one `AtlasAssistant` instance (`_assistant`) for the process lifetime. This means conversation memory is shared across all connected clients. This is intentional for the single-user case; be aware if adding multi-user auth.
+- **PWA auth header**: When `ATLAS_API_AUTH_KEY` is set, the PWA's `fetch` calls do not currently include the `Authorization` header — add it in `index.html`'s `sendMessage` function if you need authenticated PWA access.
+- **Testing the API**: `test_api.py` uses `fastapi.testclient.TestClient` which imports `httpx`. Both `fastapi` and `httpx` must be installed (`pip install -e ".[api]" && pip install httpx`). Tests are skipped gracefully if either is absent.

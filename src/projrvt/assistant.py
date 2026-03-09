@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Generator
 
 from .config import get_wake_word
 from .engine import AtlasEngine
@@ -23,6 +25,11 @@ class AtlasAssistant:
         self.voice = VoiceEngine()
         self.integrations = IntegrationsHub()
         self.voice_muted = False
+
+        # Persistent memory — load on startup, save after every exchange
+        project_root = Path(__file__).resolve().parents[2]
+        self._memory_file = project_root / "atlas_data" / "memory.json"
+        self.memory.load(self._memory_file)
 
     def handle(self, user_text: str, speak: bool = False) -> AssistantResult:
         lowered = user_text.strip().lower()
@@ -125,9 +132,47 @@ class AtlasAssistant:
 
         self.memory.add(f"User: {user_text}")
         self.memory.add(f"ATLAS: {text}")
+        self.memory.save(self._memory_file)
 
         if speak and not self.voice_muted:
             self.voice.speak(text)
             return AssistantResult(text=text, spoken=True)
 
         return AssistantResult(text=text, spoken=False)
+
+    def _is_structured(self, lowered: str) -> bool:
+        """Return True if the command is handled without calling the LLM."""
+        exact = {
+            "stop speaking", "stop voice", "silence",
+            "mute", "mute voice", "unmute", "unmute voice",
+            "calendar", "calendar list", "email", "email list",
+            "notes", "notes list", "smart home", "smarthome",
+            "smart home status", "help", "commands", "onboarding",
+            "briefing", "insights", "voice diagnostics", "diagnostics",
+        }
+        prefixes = (
+            "plan ", "do ", "weather ", "calendar add ",
+            "email send ", "notes add ", "notes find ", "smart home set ",
+        )
+        return lowered in exact or any(lowered.startswith(p) for p in prefixes)
+
+    def handle_stream(self, user_text: str) -> Generator[str, None, None]:
+        """Stream the response. Structured commands yield one chunk; LLM streams tokens."""
+        lowered = user_text.strip().lower()
+
+        if self._is_structured(lowered):
+            # Non-LLM path: delegate to handle() which also saves memory
+            result = self.handle(user_text)
+            yield result.text
+            return
+
+        # LLM path: stream tokens from engine
+        self.memory.add(f"User: {user_text}")
+        memory_summary = self.memory.summary()
+        full_text = ""
+        for chunk in self.engine.reply_stream(user_text, memory_summary):
+            full_text += chunk
+            yield chunk
+
+        self.memory.add(f"ATLAS: {full_text}")
+        self.memory.save(self._memory_file)

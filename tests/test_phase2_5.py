@@ -1,3 +1,7 @@
+import pathlib
+
+import pytest
+
 from projrvt.assistant import AtlasAssistant
 from projrvt.engine import AtlasEngine
 from projrvt.integrations import IntegrationsHub
@@ -46,3 +50,51 @@ def test_assistant_do_command():
     assistant = AtlasAssistant()
     result = assistant.handle("do prepare for monday meeting", speak=False)
     assert "Execution outline" in result.text
+
+
+@pytest.mark.uses_real_memory_io
+def test_memory_save_and_load(tmp_path):
+    mem = ConversationMemory(max_items=10)
+    mem.add("User: hello")
+    mem.add("ATLAS: hi there")
+
+    path = tmp_path / "memory.json"
+    mem.save(path)
+    assert path.exists()
+
+    mem2 = ConversationMemory(max_items=10)
+    mem2.load(path)
+    assert "User: hello" in mem2.items
+    assert "ATLAS: hi there" in mem2.items
+
+
+@pytest.mark.uses_real_memory_io
+def test_memory_load_missing_file(tmp_path):
+    mem = ConversationMemory()
+    mem.load(tmp_path / "nonexistent.json")  # must not raise
+    assert mem.items == []
+
+
+@pytest.mark.uses_real_memory_io
+def test_memory_load_corrupt_file(tmp_path):
+    bad = tmp_path / "bad.json"
+    bad.write_text("not json!!!", encoding="utf-8")
+    mem = ConversationMemory()
+    mem.load(bad)  # must not raise
+    assert mem.items == []
+
+
+def test_assistant_handle_stream_structured():
+    """Structured command yields one chunk (non-empty) via handle_stream."""
+    assistant = AtlasAssistant()
+    chunks = list(assistant.handle_stream("mute"))
+    assert len(chunks) == 1
+    assert "muted" in chunks[0].lower()
+
+
+def test_assistant_handle_stream_llm_fallback():
+    """Without an API key the LLM fallback yields at least one non-empty chunk."""
+    assistant = AtlasAssistant()
+    chunks = list(assistant.handle_stream("tell me something interesting"))
+    assert len(chunks) >= 1
+    assert any(c.strip() for c in chunks)
