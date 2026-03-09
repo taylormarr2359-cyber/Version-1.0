@@ -83,30 +83,25 @@ class AtlasEngine:
             )
 
     def reply_stream(self, user_text: str, memory_summary: str) -> Generator[str, None, None]:
-        """Yield LLM response text chunk by chunk. Yields one chunk on fallback."""
-        if not self.api_key:
+        """Yield Claude response text chunk by chunk. Yields one chunk on fallback."""
+        if not self._client:
             yield self._fallback_reply(user_text, memory_summary)
             return
 
         try:
-            from openai import OpenAI
-
-            client = OpenAI(api_key=self.api_key)
-            stream = client.chat.completions.create(
-                model="gpt-4o-mini",
+            with self._client.messages.stream(
+                model="claude-opus-4-6",
+                max_tokens=1024,
+                system=self.system_prompt,
                 messages=[
-                    {"role": "system", "content": self.system_prompt},
                     {
                         "role": "user",
                         "content": self._build_context_block(user_text, memory_summary),
-                    },
+                    }
                 ],
-                temperature=0.6,
-                stream=True,
-            )
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
-        except Exception:
+            ) as stream:
+                for token in stream.text_stream:
+                    yield token
+        except Exception as exc:
+            logger.warning("LLM stream failed (%s: %s), using fallback.", type(exc).__name__, exc)
             yield self._fallback_reply(user_text, memory_summary)

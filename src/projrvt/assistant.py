@@ -1,6 +1,9 @@
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator
+
+logger = logging.getLogger(__name__)
 
 from .config import get_wake_word, load_anthropic_api_key
 from .engine import AtlasEngine
@@ -157,12 +160,19 @@ class AtlasAssistant:
             # Use relevant memory items for smarter LLM context.
             relevant = self.memory.relevant(user_text, top_k=5)
             memory_summary = " | ".join(relevant) if relevant else self.memory.summary()
-            engine_response = self.engine.reply(user_text, memory_summary)
-            text = engine_response.text
+            try:
+                engine_response = self.engine.reply(user_text, memory_summary)
+                text = engine_response.text
+            except Exception as exc:
+                logger.error("Engine.reply failed: %s", exc)
+                text = "I encountered an error. Please try again."
 
         self.memory.add(f"User: {user_text}")
         self.memory.add(f"ATLAS: {text}")
-        self.memory.save(self._memory_file)
+        try:
+            self.memory.save(self._memory_file)
+        except Exception as exc:
+            logger.warning("Memory save failed: %s", exc)
 
         if speak and not self.voice_muted:
             self.voice.speak(text)
