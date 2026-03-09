@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from .assistant import AtlasAssistant
 from .config import get_wake_word
 

@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+import logging
 from typing import Generator
 
 import anthropic
 
 from .config import build_system_prompt, load_anthropic_api_key
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -16,6 +19,8 @@ class AtlasEngine:
     def __init__(self) -> None:
         self.api_key = load_anthropic_api_key()
         self.system_prompt = build_system_prompt()
+        # Create the client once and reuse it for all calls.
+        self._client = anthropic.Anthropic(api_key=self.api_key) if self.api_key else None
 
     def _fallback_reply(self, user_text: str, memory_summary: str) -> str:
         return (
@@ -26,7 +31,9 @@ class AtlasEngine:
         )
 
     def _build_context_block(self, user_text: str, memory_summary: str) -> str:
-        return f"Context: {memory_summary}\nUser: {user_text}"
+        if memory_summary and memory_summary != "No prior context.":
+            return f"Recent context:\n{memory_summary}\n\nUser: {user_text}"
+        return f"User: {user_text}"
 
     def plan(self, objective: str) -> list[str]:
         objective = (objective or "").strip() or "the requested objective"
@@ -43,16 +50,14 @@ class AtlasEngine:
         return f"Execution outline:\n{rendered}"
 
     def reply(self, user_text: str, memory_summary: str) -> EngineResponse:
-        # If no key, fallback quickly.
-        if not self.api_key:
+        if not self._client:
             return EngineResponse(
                 text=self._fallback_reply(user_text, memory_summary),
                 used_live_llm=False,
             )
 
         try:
-            client = anthropic.Anthropic(api_key=self.api_key)
-            with client.messages.stream(
+            with self._client.messages.stream(
                 model="claude-opus-4-6",
                 max_tokens=1024,
                 thinking={"type": "adaptive"},
@@ -70,7 +75,8 @@ class AtlasEngine:
                 "",
             )
             return EngineResponse(text=text.strip(), used_live_llm=True)
-        except Exception:
+        except Exception as exc:
+            logger.warning("LLM call failed (%s: %s), using fallback.", type(exc).__name__, exc)
             return EngineResponse(
                 text=self._fallback_reply(user_text, memory_summary),
                 used_live_llm=False,

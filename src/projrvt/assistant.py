@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator
 
-from .config import get_wake_word
+from .config import get_wake_word, load_anthropic_api_key
 from .engine import AtlasEngine
 from .integrations import IntegrationsHub
 from .memory import ConversationMemory
