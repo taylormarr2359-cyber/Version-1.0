@@ -9,11 +9,36 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+import projrvt.api as _api_mod  # noqa: E402
 from projrvt.api import app, _get_assistant  # noqa: E402
 from projrvt.assistant import AssistantResult  # noqa: E402
-from projrvt.integrations import IntegrationResult  # noqa: E402
+from projrvt.integrations import IntegrationResult, IntegrationsHub  # noqa: E402
 
 client = TestClient(app, raise_server_exceptions=True)
+
+
+@pytest.fixture(autouse=True)
+def isolated_api_data(tmp_path):
+    """Each API test gets a fresh assistant backed by an isolated temp directory.
+
+    This prevents tests from writing to the real atlas_data/ files.
+    IntegrationsHub is patched to use tmp_path; the API singleton is reset so
+    every test constructs a new AtlasAssistant that picks up the patch.
+    """
+    _api_mod._assistant = None  # force fresh assistant on next request
+
+    def _hub_init(self):
+        self._data_dir = tmp_path
+        self._data_dir.mkdir(parents=True, exist_ok=True)
+        self._calendar_file = tmp_path / "calendar.json"
+        self._notes_file = tmp_path / "notes.json"
+        self._email_file = tmp_path / "email_outbox.json"
+        self._smart_home_file = tmp_path / "smart_home.json"
+
+    with patch.object(IntegrationsHub, "__init__", _hub_init):
+        yield
+
+    _api_mod._assistant = None  # clean up after test
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 import pathlib
 
+import pytest
+
 from projrvt.assistant import AtlasAssistant
 from projrvt.engine import AtlasEngine
 from projrvt.integrations import IntegrationsHub
@@ -50,6 +52,7 @@ def test_assistant_do_command():
     assert "Execution outline" in result.text
 
 
+@pytest.mark.uses_real_memory_io
 def test_memory_save_and_load(tmp_path):
     mem = ConversationMemory(max_items=10)
     mem.add("User: hello")
@@ -65,12 +68,14 @@ def test_memory_save_and_load(tmp_path):
     assert "ATLAS: hi there" in mem2.items
 
 
+@pytest.mark.uses_real_memory_io
 def test_memory_load_missing_file(tmp_path):
     mem = ConversationMemory()
     mem.load(tmp_path / "nonexistent.json")  # must not raise
     assert mem.items == []
 
 
+@pytest.mark.uses_real_memory_io
 def test_memory_load_corrupt_file(tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text("not json!!!", encoding="utf-8")
