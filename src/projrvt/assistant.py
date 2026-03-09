@@ -124,9 +124,20 @@ class AtlasAssistant:
                 "'notes add Focus on deep work', and 'briefing'."
             )
         elif lowered == "briefing":
+            # Pull real notes and calendar items from the integration stores.
+            raw_notes = self.integrations.notes_list()
+            raw_cal = self.integrations.calendar_list()
+            note_texts = [
+                line.lstrip("0123456789. ") for line in raw_notes.message.splitlines()
+                if line.strip() and not line.startswith("Notes:")
+            ]
+            cal_texts = [
+                line.lstrip("0123456789. ") for line in raw_cal.message.splitlines()
+                if line.strip() and not line.startswith(("Upcoming", "Calendar", "Calendar is empty"))
+            ]
             text = build_daily_briefing(
-                notes=self.memory.recent(10),
-                calendar_items=[],
+                notes=note_texts,
+                calendar_items=cal_texts,
                 wake_word=get_wake_word(),
             )
         elif lowered == "insights":

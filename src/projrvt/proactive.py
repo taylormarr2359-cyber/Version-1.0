@@ -21,7 +21,7 @@ def build_daily_briefing(
     ]
 
     if cal_list:
-        lines.append("Top calendar item: " + cal_list[0])
+        lines.append("Next up: " + cal_list[0])
     if notes_list:
         lines.append("Top note: " + notes_list[0])
 
