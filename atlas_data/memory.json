@@ -1,0 +1,22 @@
+[
+  "User: mute",
+  "ATLAS: Voice output muted.",
+  "User: help",
+  "ATLAS: ATLAS Commands:\n- plan <objective>\n- do <objective>\n- weather <location>\n- calendar list | calendar add <title> | <when>\n- notes list | notes add <text> | notes find <query>\n- email list | email send <to> | <subject> | <body>\n- smart home status | smart home set <device> <value>\n- diagnostics | voice diagnostics\n- onboarding | briefing | insights\n- mute/unmute | stop speaking",
+  "User: Help me plan today",
+  "ATLAS: ATLAS fallback response:\n- You said: Help me plan today\n- Recent context: ATLAS: ATLAS Commands:\n- plan <objective>\n- do <objective>\n- weather <location>\n- calendar list | calendar add <title> | <when>\n- notes list | notes add <text> | notes find <query>\n- email list | email send <to> | <subject> | <body>\n- smart home status | smart home set <device> <value>\n- diagnostics | voice diagnostics\n- onboarding | briefing | insights\n- mute/unmute | stop speaking | User: mute | ATLAS: Voice output muted. | User: help | ATLAS: ATLAS Commands:\n- plan <objective>\n- do <objective>\n- weather <location>\n- calendar list | calendar add <title> | <when>\n- notes list | notes add <text> | notes find <query>\n- email list | email send <to> | <subject> | <body>\n- smart home status | smart home set <device> <value>\n- diagnostics | voice diagnostics\n- onboarding | briefing | insights\n- mute/unmute | stop speaking\n- Suggestion: define your next single priority and I will break it into steps.",
+  "User: mute",
+  "ATLAS: Voice output muted.",
+  "User: unmute",
+  "ATLAS: Voice output unmuted.",
+  "User: stop speaking",
+  "ATLAS: Stopping speech now.",
+  "User: plan prepare for monday meeting",
+  "ATLAS: Plan:\n1. Clarify objective and constraints for: prepare for monday meeting\n2. Break objective into concrete milestones.\n3. Execute first milestone now and report progress.\n4. Review outcomes and iterate with optimizations.",
+  "User: do prepare for monday meeting",
+  "ATLAS: Execution outline:\n1. Clarify objective and constraints for: prepare for monday meeting\n2. Break objective into concrete milestones.\n3. Execute first milestone now and report progress.\n4. Review outcomes and iterate with optimizations.",
+  "User: mute",
+  "ATLAS: Voice output muted.",
+  "User: tell me something interesting",
+  "ATLAS: ATLAS fallback response:\n- You said: tell me something interesting\n- Recent context: User: do prepare for monday meeting | ATLAS: Execution outline:\n1. Clarify objective and constraints for: prepare for monday meeting\n2. Break objective into concrete milestones.\n3. Execute first milestone now and report progress.\n4. Review outcomes and iterate with optimizations. | User: mute | ATLAS: Voice output muted. | User: tell me something interesting\n- Suggestion: define your next single priority and I will break it into steps."
+]
