@@ -71,6 +71,9 @@ class AtlasAssistant:
             else:
                 title, when = raw, ""
             text = self.integrations.dispatch("calendar_add", {"title": title, "when": when}).message
+        elif lowered.startswith("calendar delete "):
+            raw_idx = user_text.split(" ", 2)[2].strip()
+            text = self.integrations.dispatch("calendar_delete", {"index": raw_idx}).message
         elif lowered in {"email", "email list"}:
             text = self.integrations.dispatch("email_list", {}).message
         elif lowered.startswith("email send "):
@@ -88,6 +91,9 @@ class AtlasAssistant:
         elif lowered.startswith("notes find "):
             query = user_text.split(" ", 2)[2].strip()
             text = self.integrations.dispatch("notes_find", {"query": query}).message
+        elif lowered.startswith("notes delete "):
+            raw_idx = user_text.split(" ", 2)[2].strip()
+            text = self.integrations.dispatch("notes_delete", {"index": raw_idx}).message
         elif lowered in {"smart home", "smarthome", "smart home status"}:
             text = self.integrations.dispatch("smart_home_status", {}).message
         elif lowered.startswith("smart home set "):

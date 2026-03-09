@@ -55,6 +55,18 @@ class IntegrationsHub:
             lines.append(f"{idx}. {event.get('title', 'Untitled')} @ {event.get('when', 'unspecified')}")
         return IntegrationResult(ok=True, message="\n".join(lines))
 
+    def calendar_delete(self, index: str) -> IntegrationResult:
+        events = self._read_json(self._calendar_file, [])
+        try:
+            idx = int(index) - 1
+            if not (0 <= idx < len(events)):
+                raise IndexError
+        except (ValueError, IndexError):
+            return IntegrationResult(ok=False, message=f"calendar delete: no event at position {index}.")
+        removed = events.pop(idx)
+        self._write_json(self._calendar_file, events)
+        return IntegrationResult(ok=True, message=f"Deleted event: {removed.get('title', '')} @ {removed.get('when', '')}")
+
     def calendar_add(self, title: str, when: str) -> IntegrationResult:
         clean_title = (title or "").strip()
         clean_when = (when or "").strip()
@@ -125,6 +137,18 @@ class IntegrationsHub:
         self._write_json(self._notes_file, notes)
         return IntegrationResult(ok=True, message="Note saved.")
 
+    def notes_delete(self, index: str) -> IntegrationResult:
+        notes = self._read_json(self._notes_file, [])
+        try:
+            idx = int(index) - 1
+            if not (0 <= idx < len(notes)):
+                raise IndexError
+        except (ValueError, IndexError):
+            return IntegrationResult(ok=False, message=f"notes delete: no note at position {index}.")
+        removed = notes.pop(idx)
+        self._write_json(self._notes_file, notes)
+        return IntegrationResult(ok=True, message=f"Deleted note: {removed.get('text', '')}")
+
     def notes_find(self, query: str) -> IntegrationResult:
         clean_query = (query or "").strip().lower()
         if not clean_query:
@@ -175,6 +199,8 @@ class IntegrationsHub:
             return self.calendar_list()
         if normalized == "calendar_add":
             return self.calendar_add(str(payload.get("title", "")), str(payload.get("when", "")))
+        if normalized == "calendar_delete":
+            return self.calendar_delete(str(payload.get("index", "")))
 
         if normalized in {"email", "email_list"}:
             return self.email_list()
@@ -191,6 +217,8 @@ class IntegrationsHub:
             return self.notes_add(str(payload.get("text", "")))
         if normalized == "notes_find":
             return self.notes_find(str(payload.get("query", "")))
+        if normalized == "notes_delete":
+            return self.notes_delete(str(payload.get("index", "")))
 
         if normalized in {"smart_home", "smarthome", "smart_home_status"}:
             return self.smart_home_status()
