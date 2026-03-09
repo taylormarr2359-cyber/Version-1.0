@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator
 
-from .config import get_wake_word
+from .config import get_wake_word, load_anthropic_api_key
 from .engine import AtlasEngine
 from .integrations import IntegrationsHub
 from .memory import ConversationMemory
@@ -43,6 +43,15 @@ class AtlasAssistant:
         elif lowered in {"unmute", "unmute voice"}:
             self.voice_muted = False
             text = "Voice output unmuted."
+        elif lowered in {"clear memory", "reset memory", "forget"}:
+            self.memory.clear()
+            text = "Memory cleared."
+        elif lowered in {"history", "show history", "memory"}:
+            items = self.memory.recent(20)
+            if not items:
+                text = "No conversation history yet."
+            else:
+                text = "Recent history:\n" + "\n".join(f"  {i}" for i in items)
         elif lowered.startswith("plan "):
             objective = user_text.split(" ", 1)[1].strip()
             steps = self.engine.plan(objective)
@@ -62,6 +71,9 @@ class AtlasAssistant:
             else:
                 title, when = raw, ""
             text = self.integrations.dispatch("calendar_add", {"title": title, "when": when}).message
+        elif lowered.startswith("calendar delete "):
+            raw_idx = user_text.split(" ", 2)[2].strip()
+            text = self.integrations.dispatch("calendar_delete", {"index": raw_idx}).message
         elif lowered in {"email", "email list"}:
             text = self.integrations.dispatch("email_list", {}).message
         elif lowered.startswith("email send "):
@@ -79,6 +91,9 @@ class AtlasAssistant:
         elif lowered.startswith("notes find "):
             query = user_text.split(" ", 2)[2].strip()
             text = self.integrations.dispatch("notes_find", {"query": query}).message
+        elif lowered.startswith("notes delete "):
+            raw_idx = user_text.split(" ", 2)[2].strip()
+            text = self.integrations.dispatch("notes_delete", {"index": raw_idx}).message
         elif lowered in {"smart home", "smarthome", "smart home status"}:
             text = self.integrations.dispatch("smart_home_status", {}).message
         elif lowered.startswith("smart home set "):
@@ -94,12 +109,13 @@ class AtlasAssistant:
                 "- plan <objective>\n"
                 "- do <objective>\n"
                 "- weather <location>\n"
-                "- calendar list | calendar add <title> | <when>\n"
-                "- notes list | notes add <text> | notes find <query>\n"
+                "- calendar list | calendar add <title> | <when> | calendar delete <#>\n"
+                "- notes list | notes add <text> | notes find <query> | notes delete <#>\n"
                 "- email list | email send <to> | <subject> | <body>\n"
                 "- smart home status | smart home set <device> <value>\n"
                 "- diagnostics | voice diagnostics\n"
                 "- onboarding | briefing | insights\n"
+                "- history | clear memory\n"
                 "- mute/unmute | stop speaking"
             )
         elif lowered == "onboarding":
@@ -109,9 +125,20 @@ class AtlasAssistant:
                 "'notes add Focus on deep work', and 'briefing'."
             )
         elif lowered == "briefing":
+            # Pull real notes and calendar items from the integration stores.
+            raw_notes = self.integrations.notes_list()
+            raw_cal = self.integrations.calendar_list()
+            note_texts = [
+                line.lstrip("0123456789. ") for line in raw_notes.message.splitlines()
+                if line.strip() and not line.startswith("Notes:")
+            ]
+            cal_texts = [
+                line.lstrip("0123456789. ") for line in raw_cal.message.splitlines()
+                if line.strip() and not line.startswith(("Upcoming", "Calendar", "Calendar is empty"))
+            ]
             text = build_daily_briefing(
-                notes=self.memory.recent(10),
-                calendar_items=[],
+                notes=note_texts,
+                calendar_items=cal_texts,
                 wake_word=get_wake_word(),
             )
         elif lowered == "insights":
@@ -123,10 +150,13 @@ class AtlasAssistant:
                 memory_items=len(self.memory.recent(200)),
                 voice_muted=self.voice_muted,
                 wake_word=get_wake_word(),
+                api_key_loaded=bool(load_anthropic_api_key()),
             )
             text = redact_secrets(snapshot.to_text())
         else:
-            memory_summary = self.memory.summary()
+            # Use relevant memory items for smarter LLM context.
+            relevant = self.memory.relevant(user_text, top_k=5)
+            memory_summary = " | ".join(relevant) if relevant else self.memory.summary()
             engine_response = self.engine.reply(user_text, memory_summary)
             text = engine_response.text
 

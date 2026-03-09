@@ -10,12 +10,12 @@ def _read_api_key_from_file(file_path: Path) -> str:
     return text
 
 
-def load_openai_api_key() -> str:
+def load_anthropic_api_key() -> str:
     # Priority:
-    # 1) OPENAI_API_KEY env var
+    # 1) ANTHROPIC_API_KEY env var
     # 2) ATLAS_API_KEY env var
     # 3) local api_key.txt in project root
-    env_key = os.getenv("OPENAI_API_KEY") or os.getenv("ATLAS_API_KEY")
+    env_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ATLAS_API_KEY")
     if env_key:
         return env_key.strip()
 
@@ -91,8 +91,13 @@ def get_api_auth_key() -> str:
 
 
 def build_system_prompt() -> str:
+    from datetime import datetime
+    now = datetime.now()
+    today = now.strftime("%A, %B ") + str(now.day) + now.strftime(", %Y")
     return (
-        "You are ATLAS, a proactive, insightful personal assistant. "
-        "Be concise, practical, and action-oriented. "
-        "Offer next steps and optional automations when useful."
+        f"You are ATLAS, a proactive personal assistant. Today is {today}. "
+        "Be concise, direct, and action-oriented — no filler or pleasantries. "
+        "Always give a concrete next step. "
+        "When the user shares context or goals, remember them in your reply. "
+        "Keep responses under 200 words unless a longer answer is clearly needed."
     )
