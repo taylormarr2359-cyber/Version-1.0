@@ -1,242 +1,227 @@
-# CLAUDE.md — AI Assistant Guide for ATLAS (Version 1.0)
+# CLAUDE.md — ATLAS (projrvt) Codebase Guide
 
-This file provides guidance for AI assistants (Claude Code and similar) working in this repository. It describes the codebase structure, development workflows, conventions, and key patterns to follow.
+This file provides essential context for AI assistants (e.g., Claude Code) working in this repository.
 
 ---
 
 ## Project Overview
 
-**ATLAS** is a Python-based proactive personal assistant with voice synthesis, LLM integration, and local data persistence. It features:
-- GPT-4o-mini (OpenAI) as the primary LLM backend with a Blackbox API fallback
-- Local text-to-speech via `pyttsx3`, with cloud TTS fallback via `edge-tts`
-- Conversation memory, calendar, notes, email, and smart home integrations backed by local JSON files
-- Proactive briefing and pattern-based insight generation
-- Secret redaction and observability diagnostics
-- **FastAPI REST API** (`api.py`) + **Progressive Web App** (`static/`) for Android and cross-platform access with automatic sync
+**ATLAS** is a proactive personal assistant scaffold written in Python. The installable package is named `projrvt`. It combines:
 
-**Package name:** `projrvt`
-**Version:** `1.0.0`
-**Python requirement:** `>=3.10`
+- An LLM backend (OpenAI-compatible API)
+- Local and cloud text-to-speech (TTS)
+- Conversation memory with sliding-window context
+- Pluggable integrations (weather, calendar, email, notes, smart home)
+- Proactive briefing and pattern-based insights
+- Secret redaction and diagnostics utilities
+
+**Entry point:** `python -m projrvt.main` or the `atlas` CLI command after installation.
 
 ---
 
-## Repository Structure
+## Repository Layout
 
 ```
 Version-1.0/
-├── src/projrvt/              # Main application source
-│   ├── __init__.py
-│   ├── main.py               # CLI entry point (interactive loop)
-│   ├── assistant.py          # AtlasAssistant — central command dispatcher
-│   ├── config.py             # Configuration loader (env vars + defaults)
-│   ├── engine.py             # AtlasEngine — LLM calls (plan/reply)
-│   ├── voice.py              # VoiceEngine — TTS, mute/unmute, threading
-│   ├── integrations.py       # IntegrationsHub — calendar, notes, email, etc.
-│   ├── memory.py             # ConversationMemory — sliding window buffer
-│   ├── proactive.py          # Briefing + pattern-based insights
-│   ├── observability.py      # DiagnosticsSnapshot dataclass
-│   ├── security.py           # Secret redaction utilities
-│   ├── api.py                # FastAPI REST API (Android/cross-platform sync)
-│   ├── serve.py              # uvicorn entry point for the API server
-│   ├── static/
-│   │   ├── index.html        # Progressive Web App (installable on Android)
-│   │   ├── manifest.json     # PWA install manifest
-│   │   └── sw.js             # Service worker (offline shell caching)
+├── src/projrvt/               # Main package source
+│   ├── __init__.py            # Package init, loads .env, exports public API
+│   ├── main.py                # CLI entry point (run_cli)
+│   ├── assistant.py           # Core orchestrator (AtlasAssistant)
+│   ├── config.py              # Configuration loading (env vars + api_key.txt)
+│   ├── engine.py              # LLM engine (OpenAI gpt-4o-mini, fallback mode)
+│   ├── integrations.py        # Integration hub (calendar, email, notes, smart home)
+│   ├── memory.py              # Sliding-window conversation memory
+│   ├── observability.py       # Diagnostics snapshot
+│   ├── proactive.py           # Daily briefing and insight generation
+│   ├── security.py            # Secret redaction and value masking
+│   ├── voice.py               # TTS engine (pyttsx3 + edge-tts, thread-safe)
 │   └── providers/
-│       └── blackbox_api.py   # Unified API provider (OpenAI-first + fallback)
-├── tests/                    # pytest test suite (39 tests)
+│       └── blackbox_api.py    # OpenAI-compatible HTTP provider (Blackbox fallback)
+├── tests/                     # pytest test suite (21 tests, all passing)
 │   ├── test_basic.py
 │   ├── test_blackbox_api.py
-│   ├── test_security.py
 │   ├── test_phase2_5.py
 │   ├── test_proactive.py
-│   ├── test_voice_hardening.py
-│   └── test_api.py           # FastAPI endpoint tests (requires fastapi + httpx)
-├── atlas_data/               # Local JSON persistence (git-tracked defaults)
+│   ├── test_security.py
+│   └── test_voice_hardening.py
+├── atlas_data/                # Persistent JSON storage (gitignored runtime data)
 │   ├── calendar.json
-│   ├── notes.json
 │   ├── email_outbox.json
+│   ├── notes.json
 │   └── smart_home.json
-├── .github/workflows/ci.yml  # GitHub Actions CI (Python 3.10–3.12)
-├── .pre-commit-config.yaml   # black, isort, flake8 hooks
-├── pyproject.toml            # Project metadata + pytest config
-├── requirements.txt          # Dev/test dependencies
-├── README.md                 # User-facing quick-start and command reference
-├── CONTRIBUTING.md           # Contributor setup guide
-├── SECRET_MANAGEMENT.md      # Security practices for API keys
-└── TODO.md                   # Phased development roadmap
+├── .github/workflows/ci.yml   # GitHub Actions CI (Python 3.10/3.11/3.12)
+├── .pre-commit-config.yaml    # Black + isort + flake8
+├── pyproject.toml             # Build config, dependencies, pytest settings
+├── requirements.txt           # Test/dev deps (pytest, python-dotenv, azure-*)
+├── README.md
+├── CONTRIBUTING.md
+├── TODO.md                    # Phased implementation roadmap
+└── SECRET_MANAGEMENT.md       # Azure Key Vault and .env guidance
 ```
 
 ---
 
-## Development Workflow
-
-### Setup
+## Development Setup
 
 ```bash
+# Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate          # Linux/macOS
-# .venv\Scripts\Activate.ps1      # Windows PowerShell
+source .venv/bin/activate        # Linux/macOS
+# .venv\Scripts\Activate.ps1    # Windows PowerShell
 
-pip install -e .
+# Install runtime + test dependencies
 pip install -r requirements.txt
+pip install -e .                 # Editable install (exposes `atlas` CLI)
 ```
 
-### Running the Assistant
+### Required Environment Variable
 
 ```bash
-python -m projrvt.main           # CLI mode (desktop / terminal)
+export OPENAI_API_KEY="sk-..."   # Or ATLAS_API_KEY as a fallback
 ```
 
-### Running the API Server (Android / cross-platform)
-
-```bash
-pip install -e ".[api]"          # install FastAPI + uvicorn (one-time)
-python -m projrvt.serve          # starts on http://0.0.0.0:8000
-```
-
-Open `http://<server-ip>:8000/` on any device (Android, iOS, desktop browser) to use the PWA. On Android Chrome, tap the browser menu → **"Add to Home Screen"** to install it as an app.
-
-Swagger docs are at `http://localhost:8000/docs`.
-
-### Running Tests
-
-```bash
-pytest -q
-```
-
-All 21 tests must pass. The CI matrix validates Python 3.10, 3.11, and 3.12.
-
-### Code Quality
-
-```bash
-black src/ tests/
-isort src/ tests/
-flake8 src/ tests/
-```
-
-Or run all pre-commit hooks at once:
-
-```bash
-pre-commit run --all-files
-```
+Alternatively, place the key in `api_key.txt` in the project root (not committed). The assistant degrades gracefully to fallback mode if no key is found.
 
 ---
 
-## Key Conventions
+## Running Tests
 
-### Code Style
+```bash
+pytest           # Run all tests
+pytest -q        # Quiet output (matches CI behaviour)
+pytest tests/test_basic.py  # Run a single module
+```
 
-- **Formatter:** `black` (v24.1.0) — no manual formatting decisions; run it and commit
-- **Import order:** `isort` (v5.12.0) — always run after adding imports
-- **Linting:** `flake8` (v7.0.0) — zero warnings expected before committing
-- Line length follows black's default (88 chars)
+All 21 tests must pass before merging. CI runs against Python 3.10, 3.11, and 3.12.
 
-### Module Responsibilities
+---
 
-Each module has a single, well-defined role. Do not cross concerns:
+## Code Formatting and Linting
 
-| Module | Responsibility |
-|---|---|
-| `assistant.py` | Command dispatch and user-facing response logic |
-| `engine.py` | LLM prompt construction and API calls only |
-| `voice.py` | TTS synthesis and audio control only |
-| `integrations.py` | Data read/write for calendar, notes, email, smart home |
-| `memory.py` | Conversation context storage and retrieval |
-| `proactive.py` | Briefing and insight generation (read-only against memory/integrations) |
-| `observability.py` | Diagnostics snapshot, no side effects |
-| `security.py` | Secret redaction only |
-| `config.py` | Environment variable loading and default values |
-| `providers/blackbox_api.py` | HTTP-level API abstraction |
-| `api.py` | FastAPI REST endpoints — thin adapter over `AtlasAssistant` and `IntegrationsHub` |
-| `serve.py` | uvicorn server launcher; reads host/port from `config.py` |
-| `static/` | PWA shell (HTML/CSS/JS + service worker); no Python logic |
+Pre-commit hooks enforce style automatically:
 
-### Configuration Pattern
+```bash
+pip install pre-commit
+pre-commit install       # Install hooks into .git
+pre-commit run --all-files  # Run manually on all files
+```
 
-All runtime settings come from environment variables loaded in `config.py`. The pattern is:
+| Tool    | Version  | Role                   |
+|---------|----------|------------------------|
+| black   | 24.1.0   | Code formatter         |
+| isort   | 5.12.0   | Import sorter          |
+| flake8  | 7.0.0    | Linter                 |
+
+Do not submit code that fails any of these checks.
+
+---
+
+## Key Modules and Conventions
+
+### `assistant.py` — `AtlasAssistant`
+
+The central orchestrator. Holds references to all subsystems:
 
 ```python
-os.environ.get("ATLAS_SETTING_NAME", default_value)
+assistant = AtlasAssistant()
+result = assistant.handle("weather")   # returns AssistantResult(text, spoken)
 ```
 
-Numeric values are clamped to valid ranges (e.g., TTS rate: 110–210, volume: 0.0–1.0, timeout: 1.0–30.0). Never hardcode configuration values in feature modules — always add them to `config.py` first.
+- Commands are matched by simple string prefix/keyword inside `handle()`.
+- Always add new top-level commands here and route to the appropriate subsystem.
+- `AssistantResult` is a dataclass; don't break its interface.
 
-### Data Storage
+### `engine.py` — `AtlasEngine`
 
-Local JSON files in `atlas_data/` use this schema:
+Wraps the OpenAI client. Uses model `gpt-4o-mini` with `temperature=0.6`.
 
-- **calendar.json**: `[{"title": str, "when": str, "created_at": str (ISO + "Z")}]`
-- **notes.json**: `[{"text": str, "created_at": str (ISO + "Z")}]`
-- **email_outbox.json**: `[{"to": str, "subject": str, "body": str, "status": "queued", "created_at": str}]`
-- **smart_home.json**: `{"lights": str, "thermostat": str, "locks": str}`
+- `generate_response(prompt, context)` → `EngineResponse(text, used_live_llm)`
+- Falls back to a canned message when `OPENAI_API_KEY` is absent.
+- Do not hard-code model names elsewhere; change them only here.
 
-All timestamps use ISO 8601 format with a trailing `Z` (UTC). Do not change the schema without updating `integrations.py` and adding a migration path.
+### `config.py`
 
-### Integration Return Type
+Loads all configuration from environment variables with sane defaults. Key helpers:
 
-All `IntegrationsHub` methods must return an `IntegrationResult(ok: bool, message: str)` named tuple. Do not return raw data or raise exceptions from integration methods — surface errors through `ok=False, message=<description>`.
+- `load_api_key()` — checks `OPENAI_API_KEY`, then `ATLAS_API_KEY`, then `api_key.txt`
+- `load_voice_settings()` — returns a `VoiceSettings` dataclass
+- `build_system_prompt()` — returns the ATLAS personality system prompt string
 
-### LLM Engine
+### `voice.py` — `VoiceEngine`
 
-- Model: `gpt-4o-mini` (OpenAI primary)
-- Temperature: `0.6` (do not change without testing)
-- `engine.plan()` always returns a 4-step numbered plan
-- `engine.reply()` appends the latest user message to memory before calling the API
-- System prompt is assembled by `config.py:build_system_prompt()`
+Thread-safe TTS with two backends:
 
-### Security
+1. **Local:** `pyttsx3` (default)
+2. **Cloud:** `edge-tts` (set `ATLAS_TTS_PROVIDER=cloud`)
 
-- **Never** commit API keys, `.env` files, or secrets to the repository
-- `.env` is in `.gitignore` — use it locally for keys
-- The `security.py` module provides `redact_secrets()` — use it when logging any user input or API responses
-- API key patterns covered: `sk-*` (OpenAI), generic `api_key=*`, `Bearer *` tokens
-- For production/CI: use Azure Key Vault (see `SECRET_MANAGEMENT.md`)
+Voice selection uses a deterministic deep-male heuristic (prefers "Christopher", "David", "James" over feminine voices). The heuristic lives in `_score_voice()` — do not randomise voice selection.
 
-### Voice Engine
+```python
+engine = VoiceEngine(settings)
+engine.speak("Hello")
+engine.stop()
+engine.mute() / engine.unmute()
+```
 
-- Local voice selection uses a deterministic deep-male preference heuristic in `voice.py:_select_best_local_voice()`
-- TTS runs on a background thread; `stop_speaking()` is interrupt-safe
-- Mute state is tracked in `VoiceEngine.muted` (bool)
-- Cloud TTS (edge-tts) is the fallback when `ATLAS_TTS_PROVIDER=cloud`
-- **On Android / PWA**: TTS and speech recognition use the browser's Web Speech API (`window.speechSynthesis`, `window.SpeechRecognition`) — `pyttsx3` is not involved
+### `memory.py` — `ConversationMemory`
 
-### REST API & Cross-Platform Sync
+Sliding window of the last 20 turns (configurable). Provides:
 
-The FastAPI layer in `api.py` is the sync mechanism: all clients (Android, desktop browser, CLI) read and write through HTTP endpoints to the same `atlas_data/` JSON files on the server. There is no peer-to-peer or cloud sync — the server is the single source of truth.
+- `add(role, content)` — append a turn
+- `recent(n)` — last n items
+- `relevant(query)` — keyword-scored retrieval
+- `summary()` — plain-text summary for system prompt injection
+- `proactive_insights()` — list of pattern-based recommendations
 
-Key design rules:
-- `api.py` must not contain business logic; delegate everything to `AtlasAssistant` or `IntegrationsHub`
-- All endpoints share one `AtlasAssistant` singleton (module-level `_assistant`); do not instantiate per-request
-- CORS is enabled with `allow_origins=["*"]` — restrict this in production
-- Optional Bearer-token auth via `ATLAS_API_AUTH_KEY` env var; if unset, all endpoints are open
-- The `/chat` endpoint accepts `{"message": str, "speak": bool}` — `speak=True` triggers server-side TTS (only useful on desktop); the PWA always uses browser TTS instead
+### `integrations.py` — `IntegrationHub`
 
-### Progressive Web App (PWA)
+Routes commands to integration backends. Each backend reads/writes JSON under `atlas_data/`. The dispatch interface:
 
-- `static/index.html` is a self-contained single-file app (no build step)
-- It talks to the API using relative URLs (`/chat`, `/calendar`, etc.) — always connects to its own server
-- `static/sw.js` caches the shell (`/`, `/static/manifest.json`) for offline display; API calls are network-first
-- To add new quick-action buttons, add `<button class="qa-btn" data-cmd="your command">` in the `#quick-bar` div — no JS changes needed
-- Do not introduce a JS framework or build toolchain; keep the frontend dependency-free
+```python
+result = hub.dispatch("calendar list")   # IntegrationResult(ok, message)
+```
+
+When adding a new integration:
+1. Add a JSON file under `atlas_data/`.
+2. Implement a method on `IntegrationHub`.
+3. Register the keyword in `dispatch()`.
+4. Add the data file path to `observability.py`'s file-existence check.
+
+### `security.py`
+
+Always run user-visible output through `redact_secrets(text)` before logging or displaying in diagnostics. Patterns covered: `sk-*` keys, `api_key=` params, `Authorization: Bearer` headers.
+
+### `providers/blackbox_api.py`
+
+OpenAI-compatible HTTP provider used as a fallback or alternative backend. Configuration priority:
+
+1. `OPENAI_*` env vars (preferred)
+2. `BLACKBOX_*` env vars (legacy fallback)
+
+The provider validates that `base_url` is not a placeholder (rejects `example.com`).
 
 ---
 
-## Testing Conventions
+## Environment Variables Reference
 
-- All tests live in `tests/`, no subdirectories
-- Use `pytest` only — no unittest-style classes (plain functions with descriptive names)
-- Mock external API calls with `unittest.mock.patch` — tests must not make real HTTP requests
-- Fixture data (JSON payloads) for API edge cases lives in root or `tests/` as `.json` files
-- Test file naming: `test_<feature>.py`
-- Test function naming: `test_<what_it_checks>()`
-- Every new module or non-trivial function needs at least one test
-
-### Running a Specific Test File
-
-```bash
-pytest tests/test_security.py -v
-```
+| Variable                  | Default          | Description                                 |
+|---------------------------|------------------|---------------------------------------------|
+| `OPENAI_API_KEY`          | —                | Primary LLM API key (preferred)             |
+| `ATLAS_API_KEY`           | —                | Fallback LLM API key                        |
+| `OPENAI_API_BASE_URL`     | OpenAI default   | Override API endpoint                       |
+| `OPENAI_MODEL`            | `gpt-4o-mini`    | Model name                                  |
+| `OPENAI_TIMEOUT`          | `30`             | Request timeout (seconds)                   |
+| `BLACKBOX_API_BASE_URL`   | —                | Legacy Blackbox endpoint                    |
+| `BLACKBOX_API_KEY`        | —                | Legacy Blackbox API key                     |
+| `BLACKBOX_MODEL`          | —                | Legacy Blackbox model                       |
+| `ATLAS_TTS_PROVIDER`      | `local`          | `local` (pyttsx3) or `cloud` (edge-tts)     |
+| `ATLAS_TTS_VOICE`         | `david`          | Preferred voice keyword                     |
+| `ATLAS_TTS_RATE`          | `155`            | Speech rate (clamped 110–210)               |
+| `ATLAS_TTS_VOLUME`        | `1.0`            | Volume (0.0–1.0)                            |
+| `ATLAS_TTS_STYLE`         | `calm_authoritative` | Voice style hint                        |
+| `ATLAS_WAKE_WORD`         | `atlas`          | Prefix stripped before command processing   |
+| `ATLAS_VOICE_INTERRUPTIBLE` | `true`         | Allow mid-speech interruption               |
+| `ATLAS_VOICE_TIMEOUT_SEC` | `4.0`            | Per-utterance timeout                       |
 
 ---
 
